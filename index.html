@@ -19,6 +19,7 @@
             background-color: #1a202c;
         }
         .cell {
+            aspect-ratio: 1 / 1;
             width: 100%;
             position: relative;
             cursor: pointer;
@@ -147,8 +148,8 @@
 
             <!-- Game Board Column -->
             <div class="lg:col-span-2 order-1 lg:order-2 relative">
-                 <div id="board-container" class="relative">
-                    <div id="board" class="grid bg-gray-800/50 backdrop-blur-sm rounded-2xl shadow-lg aspect-square border-4 border-purple-400/50"></div>
+                 <div id="board-container" class="aspect-square w-full relative">
+                    <div id="board" class="grid bg-gray-800/50 backdrop-blur-sm rounded-2xl shadow-lg border-4 border-purple-400/50"></div>
                  </div>
             </div>
         </div>
@@ -232,8 +233,7 @@
             board.innerHTML = '';
             modal.classList.add('hidden');
             
-            dynamicStyles.innerHTML = `.cell { width: ${100/GRID_COLS}%; padding-bottom: ${100/GRID_COLS}%; }`;
-            board.style.gridTemplateColumns = `repeat(${GRID_COLS}, 1fr)`;
+            board.style.gridTemplateColumns = `repeat(${GRID_COLS}, minmax(0, 1fr))`;
 
             for (let i = 0; i < GRID_ROWS * GRID_COLS; i++) {
                 const cell = document.createElement('div');
