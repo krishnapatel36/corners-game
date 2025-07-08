@@ -5,21 +5,27 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Corners Game (Improved)</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
+    <style id="dynamic-styles">
+        /* Grid cell styles will be injected here by JavaScript */
+    </style>
     <style>
         body {
-            font-family: 'Inter', sans-serif;
+            font-family: 'Nunito', sans-serif;
             touch-action: manipulation;
+            background-image: url('https://www.transparenttextures.com/patterns/stardust.png');
+            background-color: #1a202c;
         }
         .cell {
             width: 100%;
-            padding-bottom: 12.5%;
             position: relative;
             cursor: pointer;
-            border: 1px solid #e2e8f0;
+            border: 1px solid rgba(255, 255, 255, 0.2);
             transition: background-color 0.2s;
         }
-        .cell:hover { background-color: #f1f5f9; }
+        .cell:hover { background-color: rgba(255, 255, 255, 0.1); }
         
         .dot-container {
             position: absolute;
@@ -32,83 +38,128 @@
             width: 60%;
             height: 60%;
             border-radius: 50%;
-            transition: all 0.2s ease-in-out;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             background-color: transparent;
             box-sizing: border-box;
+            transform: scale(0); /* Start scaled down for pop-in animation */
+        }
+        
+        .dot.placed {
+             transform: scale(1);
         }
 
         /* Outline state for placed dots */
-        .dot.player1-outline { border: 4px solid #3b82f6; }
-        .dot.player2-outline { border: 4px solid #ef4444; }
+        .dot.player1-outline { border: 5px solid #4299e1; }
+        .dot.player2-outline { border: 5px solid #f56565; }
 
         /* Filled state for claimed dots */
-        .dot.player1-filled { background-color: #3b82f6; border: none; }
-        .dot.player2-filled { background-color: #ef4444; border: none; }
+        .dot.player1-filled { background-color: #4299e1; border: none; }
+        .dot.player2-filled { background-color: #f56565; border: none; }
 
         /* Highlight for selection during claim phase */
         .dot.selected-for-claim {
-            transform: scale(1.2);
-            box-shadow: 0 0 15px gold;
+            transform: scale(1.2) !important;
+            box-shadow: 0 0 20px #f6e05e;
         }
 
         .modal { transition: opacity 0.25s ease; }
+
+        .grid-size-btn.active {
+            background-color: #4a5568;
+            color: white;
+            border-color: #4a5568;
+        }
+        
+        .player-avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            border: 4px solid white;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        
+        .star-burst {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            opacity: 0;
+            animation: burst 0.8s ease-out;
+        }
+
+        @keyframes burst {
+            0% { transform: scale(0); opacity: 1; }
+            50% { opacity: 1; }
+            100% { transform: scale(2); opacity: 0; }
+        }
     </style>
 </head>
-<body class="bg-slate-100 text-slate-800 flex items-center justify-center min-h-screen">
+<body class="flex items-center justify-center min-h-screen p-4">
 
-    <div id="start-screen" class="text-center p-8 bg-white rounded-lg shadow-lg">
-        <h1 class="text-4xl font-bold mb-6">Corners Game</h1>
-        <div class="space-y-4">
-            <button id="two-player-btn" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-lg text-lg transition">2 Player Mode</button>
-            <button id="vs-computer-btn" class="w-full bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-6 rounded-lg text-lg transition">VS Computer</button>
+    <div id="start-screen" class="text-center p-8 bg-gray-800 text-white rounded-2xl shadow-2xl w-full max-w-md border-4 border-purple-500">
+        <h1 class="text-5xl font-black mb-6 tracking-wider">CORNERS</h1>
+        
+        <div class="mb-4">
+            <label class="text-xl font-bold mb-3 block">Rows</label>
+            <div id="grid-rows-selector" class="flex justify-center gap-2 flex-wrap"></div>
+        </div>
+        <div class="mb-6">
+            <label class="text-xl font-bold mb-3 block">Columns</label>
+            <div id="grid-cols-selector" class="flex justify-center gap-2 flex-wrap"></div>
+        </div>
+
+        <div class="space-y-4 mt-8">
+            <button id="two-player-btn" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-lg text-lg transition transform hover:scale-105">2 Player Mode</button>
+            <button id="vs-computer-btn" class="w-full bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-6 rounded-lg text-lg transition transform hover:scale-105">VS Computer</button>
         </div>
     </div>
 
-    <div id="game-container" class="hidden w-full max-w-4xl mx-auto p-4 md:p-6">
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div id="game-container" class="hidden w-full max-w-6xl mx-auto p-4 md:p-6">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <!-- Game Info Column -->
-            <div class="lg:col-span-1 bg-white p-6 rounded-xl shadow-md order-2 lg:order-1 flex flex-col">
-                <h1 class="text-3xl font-bold mb-4 text-center">Corners</h1>
-                <div class="flex justify-around mb-4 text-center">
+            <div class="lg:col-span-1 bg-gray-800 text-white p-6 rounded-2xl shadow-2xl order-2 lg:order-1 flex flex-col border-4 border-purple-500">
+                <h1 class="text-4xl font-black mb-4 text-center tracking-wider">CORNERS</h1>
+                <div class="flex justify-around items-center mb-4 text-center">
                     <div>
-                        <h2 class="text-xl font-semibold text-blue-600">Player 1</h2>
-                        <p id="score1" class="text-3xl font-bold">0</p>
+                        <img src="https://api.dicebear.com/8.x/bottts/svg?seed=player1&backgroundColor=b6e3f4" alt="Player 1 Avatar" class="player-avatar mx-auto mb-2">
+                        <p id="score1" class="text-4xl font-bold">0</p>
                     </div>
                     <div>
-                        <h2 id="player2-label" class="text-xl font-semibold text-red-600">Player 2</h2>
-                        <p id="score2" class="text-3xl font-bold">0</p>
+                        <img id="player2-avatar" src="https://api.dicebear.com/8.x/bottts/svg?seed=player2&backgroundColor=f4b6b6" alt="Player 2 Avatar" class="player-avatar mx-auto mb-2">
+                        <p id="score2" class="text-4xl font-bold">0</p>
                     </div>
                 </div>
-                <div id="turn-indicator" class="text-center text-lg font-medium p-3 rounded-lg mb-4">
-                    Current Turn: <span id="current-player" class="font-bold"></span>
+                <div id="turn-indicator" class="text-center text-lg font-bold p-3 rounded-lg mb-4 transition-colors duration-300">
+                    <span id="current-player"></span>'s Turn
                 </div>
-                <div id="game-state-info" class="text-center font-medium p-3 rounded-lg bg-gray-100 mb-4 h-24 flex items-center justify-center">
+                <div id="game-state-info" class="text-center font-bold p-3 rounded-lg bg-gray-700 mb-4 h-24 flex items-center justify-center">
                     <p id="info-message"></p>
                 </div>
 
                  <div id="action-buttons" class="space-y-3">
-                    <button id="claim-btn" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition hidden">Claim a Square</button>
-                    <button id="cancel-claim-btn" class="w-full bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition hidden">Cancel Claim</button>
+                    <button id="claim-btn" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-5 rounded-lg transition transform hover:scale-105 hidden">Claim Square</button>
+                    <button id="pass-btn" class="w-full bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-3 px-5 rounded-lg transition transform hover:scale-105 hidden">Pass Turn</button>
+                    <button id="cancel-claim-btn" class="w-full bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-5 rounded-lg transition transform hover:scale-105 hidden">Cancel Claim</button>
                 </div>
                 <div class="flex-grow"></div>
-                <button id="reset-btn" class="mt-4 w-full bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg transition">New Game</button>
+                <button id="reset-btn" class="mt-4 w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-5 rounded-lg transition transform hover:scale-105">New Game</button>
             </div>
 
             <!-- Game Board Column -->
             <div class="lg:col-span-2 order-1 lg:order-2 relative">
                  <div id="board-container" class="relative">
-                    <div id="board" class="grid grid-cols-8 bg-white rounded-xl shadow-lg aspect-square"></div>
+                    <div id="board" class="grid bg-gray-800/50 backdrop-blur-sm rounded-2xl shadow-lg aspect-square border-4 border-purple-400/50"></div>
                  </div>
             </div>
         </div>
     </div>
 
     <!-- Modal -->
-    <div id="modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
-        <div class="bg-white p-8 rounded-lg shadow-2xl text-center max-w-sm w-full">
-            <h2 id="modal-title" class="text-3xl font-bold mb-4">Game Over!</h2>
-            <p id="modal-message" class="text-lg mb-6"></p>
-            <button id="play-again-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-lg text-lg transition">Play Again</button>
+    <div id="modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center hidden z-50">
+        <div class="bg-gray-800 text-white p-8 rounded-2xl shadow-2xl text-center max-w-sm w-full border-4 border-purple-500">
+            <h2 id="modal-title" class="text-4xl font-black mb-4">Game Over!</h2>
+            <p id="modal-message" class="text-xl mb-6"></p>
+            <button id="play-again-btn" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-lg text-lg transition transform hover:scale-105">Play Again</button>
         </div>
     </div>
 
@@ -117,46 +168,74 @@
         const startScreen = document.getElementById('start-screen');
         const twoPlayerBtn = document.getElementById('two-player-btn');
         const vsComputerBtn = document.getElementById('vs-computer-btn');
+        const gridRowsSelector = document.getElementById('grid-rows-selector');
+        const gridColsSelector = document.getElementById('grid-cols-selector');
         const gameContainer = document.getElementById('game-container');
         const board = document.getElementById('board');
         const score1El = document.getElementById('score1');
         const score2El = document.getElementById('score2');
-        const player2Label = document.getElementById('player2-label');
+        const player2Avatar = document.getElementById('player2-avatar');
         const turnIndicator = document.getElementById('turn-indicator');
         const currentPlayerEl = document.getElementById('current-player');
         const infoMessage = document.getElementById('info-message');
         const claimBtn = document.getElementById('claim-btn');
+        const passBtn = document.getElementById('pass-btn');
         const cancelClaimBtn = document.getElementById('cancel-claim-btn');
         const resetBtn = document.getElementById('reset-btn');
         const modal = document.getElementById('modal');
         const modalTitle = document.getElementById('modal-title');
         const modalMessage = document.getElementById('modal-message');
         const playAgainBtn = document.getElementById('play-again-btn');
+        const dynamicStyles = document.getElementById('dynamic-styles');
 
         // --- Game State ---
-        const GRID_SIZE = 8;
+        let GRID_ROWS = 8;
+        let GRID_COLS = 8;
         let boardState = [];
-        let claimedSquares = []; // Store IDs of claimed squares
+        let claimedSquares = [];
         let currentPlayer = 1;
         let gameMode = '2p';
         let gameOver = false;
-        let currentPhase = 'PLACE_MARK'; // or 'SELECTING_CORNERS', 'MUST_PLACE_BONUS_MARK'
+        let currentPhase = 'PLACE_MARK';
         let selectedForClaim = [];
+        let lastChanceTurnsTaken = 0;
 
         // --- Game Setup ---
+        function setupStartScreen() {
+            const createButtons = (selector, type) => {
+                selector.innerHTML = '';
+                for (let i = 6; i <= 10; i++) {
+                    const button = document.createElement('button');
+                    button.textContent = i;
+                    button.dataset.size = i;
+                    button.classList.add('grid-size-btn', 'px-4', 'py-2', 'rounded-md', 'border', 'border-gray-600', 'bg-gray-700', 'hover:bg-gray-600', 'transition');
+                    if ((type === 'rows' && i === GRID_ROWS) || (type === 'cols' && i === GRID_COLS)) {
+                        button.classList.add('active');
+                    }
+                    selector.appendChild(button);
+                }
+            };
+            createButtons(gridRowsSelector, 'rows');
+            createButtons(gridColsSelector, 'cols');
+        }
+
         function initializeGame() {
-            boardState = Array(GRID_SIZE * GRID_SIZE).fill(0);
+            boardState = Array(GRID_ROWS * GRID_COLS).fill(0);
             claimedSquares = [];
             currentPlayer = 1;
             scores = { 1: 0, 2: 0 };
             gameOver = false;
             currentPhase = 'PLACE_MARK';
             selectedForClaim = [];
+            lastChanceTurnsTaken = 0;
 
             board.innerHTML = '';
             modal.classList.add('hidden');
+            
+            dynamicStyles.innerHTML = `.cell { width: ${100/GRID_COLS}%; padding-bottom: ${100/GRID_COLS}%; }`;
+            board.style.gridTemplateColumns = `repeat(${GRID_COLS}, 1fr)`;
 
-            for (let i = 0; i < GRID_SIZE * GRID_SIZE; i++) {
+            for (let i = 0; i < GRID_ROWS * GRID_COLS; i++) {
                 const cell = document.createElement('div');
                 cell.classList.add('cell');
                 cell.dataset.index = i;
@@ -173,8 +252,24 @@
         }
 
         // --- Event Listeners ---
+        gridRowsSelector.addEventListener('click', (e) => {
+            if (e.target.classList.contains('grid-size-btn')) {
+                GRID_ROWS = parseInt(e.target.dataset.size);
+                gridRowsSelector.querySelectorAll('.grid-size-btn').forEach(btn => btn.classList.remove('active'));
+                e.target.classList.add('active');
+            }
+        });
+        gridColsSelector.addEventListener('click', (e) => {
+            if (e.target.classList.contains('grid-size-btn')) {
+                GRID_COLS = parseInt(e.target.dataset.size);
+                gridColsSelector.querySelectorAll('.grid-size-btn').forEach(btn => btn.classList.remove('active'));
+                e.target.classList.add('active');
+            }
+        });
+
         twoPlayerBtn.addEventListener('click', () => startGame('2p'));
         vsComputerBtn.addEventListener('click', () => startGame('cpu'));
+
         resetBtn.addEventListener('click', () => {
             startScreen.style.display = 'block';
             gameContainer.classList.add('hidden');
@@ -185,11 +280,14 @@
              gameContainer.classList.add('hidden');
         });
         claimBtn.addEventListener('click', handleClaimAction);
+        passBtn.addEventListener('click', handlePassAction);
         cancelClaimBtn.addEventListener('click', handleCancelClaimAction);
 
         function startGame(mode) {
             gameMode = mode;
-            player2Label.textContent = (mode === 'cpu') ? 'Computer' : 'Player 2';
+            const player2AvatarSrc = (mode === 'cpu') ? 'https://api.dicebear.com/8.x/bottts/svg?seed=computer&backgroundColor=f4b6b6&mouth=smile01,smile02&sides=antenna01,antenna02&top=antenna,antennaCrooked' : 'https://api.dicebear.com/8.x/bottts/svg?seed=player2&backgroundColor=f4b6b6';
+            player2Avatar.src = player2AvatarSrc;
+            
             startScreen.style.display = 'none';
             gameContainer.classList.remove('hidden');
             initializeGame();
@@ -197,42 +295,43 @@
 
         // --- Main UI Update Function ---
         function updateUI() {
-            // Update Scores
             let newScores = { 1: 0, 2: 0 };
-            claimedSquares.forEach(sq => {
-                const owner = boardState[sq.corners[0]];
-                newScores[owner] += 4;
+            const dots = board.querySelectorAll('.dot');
+            dots.forEach(dot => {
+                if (dot.classList.contains('player1-filled')) newScores[1]++;
+                else if (dot.classList.contains('player2-filled')) newScores[2]++;
             });
             scores = newScores;
             score1El.textContent = scores[1];
             score2El.textContent = scores[2];
 
-            // Update Turn Indicator
             const playerName = currentPlayer === 1 ? 'Player 1' : (gameMode === 'cpu' ? 'Computer' : 'Player 2');
             currentPlayerEl.textContent = playerName;
-            turnIndicator.classList.toggle('bg-blue-200', currentPlayer === 1);
-            turnIndicator.classList.toggle('text-blue-800', currentPlayer === 1);
-            turnIndicator.classList.toggle('bg-red-200', currentPlayer === 2);
-            turnIndicator.classList.toggle('text-red-800', currentPlayer === 2);
+            turnIndicator.classList.toggle('bg-blue-500', currentPlayer === 1);
+            turnIndicator.classList.toggle('bg-red-500', currentPlayer === 2);
 
-            // Update Action Buttons & Info Message
             claimBtn.classList.add('hidden');
             cancelClaimBtn.classList.add('hidden');
+            passBtn.classList.add('hidden');
 
             if (currentPhase === 'SELECTING_CORNERS') {
-                infoMessage.innerHTML = `Select 4 of your dots to form a square. <br/> <span class="font-bold text-lg">${selectedForClaim.length} / 4 selected</span>`;
+                infoMessage.innerHTML = `Select 4 of your dots. <br/> <span class="font-bold text-lg">${selectedForClaim.length} / 4 selected</span>`;
                 cancelClaimBtn.classList.remove('hidden');
             } else if (currentPhase === 'MUST_PLACE_BONUS_MARK') {
-                infoMessage.textContent = 'Claim successful! Now place your bonus mark.';
+                infoMessage.textContent = 'Claim successful! Place your bonus mark.';
+            } else if (currentPhase === 'LAST_CHANCE') {
+                infoMessage.textContent = `${playerName}: Last Chance! Claim a square or pass.`;
+                claimBtn.classList.remove('hidden');
+                passBtn.classList.remove('hidden');
             } else { // PLACE_MARK
-                claimBtn.classList.remove('hidden'); // Always show the claim button
+                claimBtn.classList.remove('hidden');
                 infoMessage.textContent = 'Place a new mark or claim a square.';
             }
         }
         
         // --- Game Flow & Actions ---
         function handleCellClick(event) {
-            if (gameOver) return;
+            if (gameOver || currentPhase === 'LAST_CHANCE') return;
             const index = parseInt(event.currentTarget.dataset.index);
 
             if (currentPhase === 'SELECTING_CORNERS') {
@@ -240,26 +339,20 @@
                 return;
             }
 
-            if (currentPhase === 'PLACE_MARK' || currentPhase === 'MUST_PLACE_BONUS_MARK') {
-                if (boardState[index] !== 0) return;
-
-                const wasBonusMove = currentPhase === 'MUST_PLACE_BONUS_MARK';
-                placeMark(index);
-                
-                if (!wasBonusMove) {
-                    // This is a regular move. The turn ends.
-                    switchTurn();
-                } else {
-                    // This was a bonus move. The turn should also end.
-                    switchTurn();
-                }
+            if (boardState[index] !== 0) return;
+            placeMark(index);
+            
+            if (currentPhase !== 'MUST_PLACE_BONUS_MARK') {
+                 switchTurn();
+            } else {
+                 switchTurn();
             }
         }
         
         function handleClaimAction() {
             const playerDotsCount = boardState.filter(p => p === currentPlayer).length;
             if (playerDotsCount < 4) {
-                infoMessage.textContent = "You need at least 4 dots to claim a square.";
+                infoMessage.textContent = "You need at least 4 dots to claim.";
                 setTimeout(() => updateUI(), 1500);
                 return;
             }
@@ -267,31 +360,35 @@
             selectedForClaim = [];
             updateUI();
         }
+
+        function handlePassAction() {
+            if (currentPhase !== 'LAST_CHANCE') return;
+            lastChanceTurnsTaken++;
+            if (lastChanceTurnsTaken >= 2) {
+                endGame();
+            } else {
+                switchTurn(true);
+            }
+        }
         
         function handleCancelClaimAction() {
-            currentPhase = 'PLACE_MARK';
+            const boardIsFull = !boardState.includes(0);
+            currentPhase = boardIsFull && lastChanceTurnsTaken > 0 ? 'LAST_CHANCE' : 'PLACE_MARK';
             clearSelectionHighlights();
             selectedForClaim = [];
             updateUI();
         }
 
         function handleSelection(index) {
-            // Can only select your own, unselected dots
-            if (boardState[index] !== currentPlayer || selectedForClaim.includes(index)) {
-                return;
-            }
-            
+            if (boardState[index] !== currentPlayer || selectedForClaim.includes(index)) return;
             selectedForClaim.push(index);
             board.querySelector(`[data-index='${index}'] .dot`).classList.add('selected-for-claim');
             updateUI();
-
-            if (selectedForClaim.length === 4) {
-                validateAndClaimSelection();
-            }
+            if (selectedForClaim.length === 4) validateAndClaimSelection();
         }
 
         function validateAndClaimSelection() {
-            const points = selectedForClaim.map(index => ({ x: index % GRID_SIZE, y: Math.floor(index / GRID_SIZE) }));
+            const points = selectedForClaim.map(index => ({ x: index % GRID_COLS, y: Math.floor(index / GRID_COLS) }));
             const isAValidSquare = isSquare(points);
             const sortedIndices = [...selectedForClaim].sort((a, b) => a - b);
             const squareId = sortedIndices.join('-');
@@ -300,11 +397,12 @@
             if (isAValidSquare && !isAlreadyClaimed) {
                 executeClaim(sortedIndices, squareId);
             } else {
-                infoMessage.textContent = 'Invalid square or already claimed. Try again.';
+                infoMessage.textContent = 'Invalid square or already claimed.';
+                const boardIsFull = !boardState.includes(0);
                 setTimeout(() => {
                     clearSelectionHighlights();
                     selectedForClaim = [];
-                    currentPhase = 'PLACE_MARK';
+                    currentPhase = boardIsFull ? 'LAST_CHANCE' : 'PLACE_MARK';
                     updateUI();
                 }, 1500);
             }
@@ -312,16 +410,55 @@
 
         function executeClaim(corners, squareId) {
             claimedSquares.push({ id: squareId, corners: corners });
-            
             corners.forEach(index => {
                 const dot = board.querySelector(`[data-index='${index}'] .dot`);
                 dot.classList.remove(`player${currentPlayer}-outline`, 'selected-for-claim');
                 dot.classList.add(`player${currentPlayer}-filled`);
+                // --- Success Animation: Star Burst ---
+                const cell = board.querySelector(`[data-index='${index}']`);
+                let burst = document.createElement('div');
+                burst.className = 'star-burst';
+                burst.style.pointerEvents = 'none';
+                burst.innerHTML = `
+                    <svg width="100%" height="100%" viewBox="0 0 100 100">
+                        <g>
+                            <circle cx="50" cy="50" r="18" fill="none" stroke="#f6e05e" stroke-width="6" opacity="0.7"/>
+                            <g>
+                                <line x1="50" y1="10" x2="50" y2="30" stroke="#f6e05e" stroke-width="4"/>
+                                <line x1="50" y1="70" x2="50" y2="90" stroke="#f6e05e" stroke-width="4"/>
+                                <line x1="10" y1="50" x2="30" y2="50" stroke="#f6e05e" stroke-width="4"/>
+                                <line x1="70" y1="50" x2="90" y2="50" stroke="#f6e05e" stroke-width="4"/>
+                                <line x1="25" y1="25" x2="38" y2="38" stroke="#f6e05e" stroke-width="3"/>
+                                <line x1="75" y1="25" x2="62" y2="38" stroke="#f6e05e" stroke-width="3"/>
+                                <line x1="25" y1="75" x2="38" y2="62" stroke="#f6e05e" stroke-width="3"/>
+                                <line x1="75" y1="75" x2="62" y2="62" stroke="#f6e05e" stroke-width="3"/>
+                            </g>
+                        </g>
+                    </svg>
+                `;
+                cell.appendChild(burst);
+                setTimeout(() => {
+                    burst.style.opacity = 0;
+                    burst.remove();
+                }, 800);
             });
-            
             selectedForClaim = [];
-            currentPhase = 'MUST_PLACE_BONUS_MARK';
-            updateUI();
+
+            const boardIsFull = !boardState.includes(0);
+
+            if (boardIsFull) {
+                lastChanceTurnsTaken++;
+                updateUI();
+                if (lastChanceTurnsTaken >= 2) {
+                    setTimeout(endGame, 100);
+                } else {
+                    currentPhase = 'LAST_CHANCE';
+                    switchTurn(true);
+                }
+            } else {
+                currentPhase = 'MUST_PLACE_BONUS_MARK';
+                updateUI();
+            }
         }
 
         function placeMark(index) {
@@ -329,15 +466,22 @@
             drawDot(index, currentPlayer);
         }
 
-        function switchTurn() {
-            currentPlayer = currentPlayer === 1 ? 2 : 1;
-            currentPhase = 'PLACE_MARK';
-            
-            if (checkGameOver()) {
-                endGame();
+        function switchTurn(isLastChanceSwitch = false) {
+            const boardIsFull = !boardState.includes(0);
+
+            if (boardIsFull && currentPhase !== 'LAST_CHANCE' && lastChanceTurnsTaken === 0) {
+                currentPhase = 'LAST_CHANCE';
+                updateUI();
+                if (gameMode === 'cpu' && currentPlayer === 2) setTimeout(computerTurn, 800);
                 return;
             }
 
+            currentPlayer = currentPlayer === 1 ? 2 : 1;
+            if (!isLastChanceSwitch) {
+                currentPhase = 'PLACE_MARK';
+            }
+            
+            if (gameOver) return;
             updateUI();
 
             if (gameMode === 'cpu' && currentPlayer === 2 && !gameOver) {
@@ -348,20 +492,26 @@
         function computerTurn() {
             if (gameOver) return;
 
-            // AI Logic: Find a square to claim
+            if (currentPhase === 'LAST_CHANCE') {
+                const potentialSquare = findUnclaimedSquareForAI();
+                if (potentialSquare) {
+                    executeClaim(potentialSquare.corners, potentialSquare.id);
+                } else {
+                    handlePassAction();
+                }
+                return;
+            }
+            
             const potentialSquare = findUnclaimedSquareForAI();
             if (potentialSquare) {
                 executeClaim(potentialSquare.corners, potentialSquare.id);
-                // After claim, AI must place a bonus mark.
                 setTimeout(() => {
                     placeComputerMark();
-                    // After bonus mark, the turn must switch.
                     switchTurn();
                 }, 800);
                 return;
             }
 
-            // Otherwise, place a regular mark and switch turns.
             placeComputerMark();
             switchTurn();
         }
@@ -370,7 +520,7 @@
             const aiPoints = [];
             for (let i = 0; i < boardState.length; i++) {
                 if (boardState[i] === 2) {
-                    aiPoints.push({ x: i % GRID_SIZE, y: Math.floor(i / GRID_SIZE) });
+                    aiPoints.push({ x: i % GRID_COLS, y: Math.floor(i / GRID_COLS) });
                 }
             }
             if (aiPoints.length < 4) return null;
@@ -381,7 +531,7 @@
                         for (let l = k + 1; l < aiPoints.length; l++) {
                             const corners = [aiPoints[i], aiPoints[j], aiPoints[k], aiPoints[l]];
                             if (isSquare(corners)) {
-                                const cornerIndices = corners.map(p => p.y * GRID_SIZE + p.x).sort((a,b) => a-b);
+                                const cornerIndices = corners.map(p => p.y * GRID_COLS + p.x).sort((a,b) => a-b);
                                 const id = cornerIndices.join('-');
                                 if (!claimedSquares.some(sq => sq.id === id)) {
                                      return { id, corners: cornerIndices };
@@ -399,11 +549,7 @@
             for (let i = 0; i < boardState.length; i++) {
                 if (boardState[i] === 0) availableCells.push(i);
             }
-            if (availableCells.length === 0) {
-                // No available cells, might trigger game over check in switchTurn
-                return;
-            }
-
+            if (availableCells.length === 0) return;
             const moveIndex = availableCells[Math.floor(Math.random() * availableCells.length)];
             placeMark(moveIndex);
         }
@@ -420,25 +566,19 @@
                 && Math.abs(distances[5] - 2 * distances[0]) < 0.001;
         }
 
-        // --- Visual Helpers ---
         function drawDot(index, player) {
-            board.querySelector(`[data-index='${index}'] .dot`).classList.add(`player${player}-outline`);
+            const dot = board.querySelector(`[data-index='${index}'] .dot`)
+            dot.classList.add(`player${player}-outline`, 'placed');
         }
         
         function clearSelectionHighlights() {
              board.querySelectorAll('.selected-for-claim').forEach(d => d.classList.remove('selected-for-claim'));
         }
 
-        // --- Game Over ---
-        function checkGameOver() {
-            if (boardState.every(cell => cell !== 0)) {
-                gameOver = true;
-                return true;
-            }
-            return false;
-        }
-
         function endGame() {
+            if(gameOver) return;
+            gameOver = true;
+            updateUI(); // Final score update
             let message = '';
             if (scores[1] > scores[2]) {
                 message = 'Player 1 Wins!';
@@ -452,6 +592,9 @@
             modalMessage.textContent = message;
             modal.classList.remove('hidden');
         }
+
+        // --- Initial Setup on Page Load ---
+        document.addEventListener('DOMContentLoaded', setupStartScreen);
 
     </script>
 </body>
