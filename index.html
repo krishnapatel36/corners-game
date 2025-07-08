@@ -1,167 +1,501 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Corners Game</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f0f0f0;
-      text-align: center;
-      margin: 0;
-      padding: 20px;
-    }
-    h1 {
-      margin-bottom: 10px;
-    }
-    #gameBoard {
-      display: grid;
-      grid-template-columns: repeat(7, 50px);
-      grid-template-rows: repeat(7, 50px);
-      gap: 5px;
-      justify-content: center;
-      margin: 20px auto;
-    }
-    .cell {
-      width: 50px;
-      height: 50px;
-      background: white;
-      border: 2px solid #ccc;
-      cursor: pointer;
-    }
-    .red { background: red; }
-    .blue { background: blue; }
-    .claimed { border: 3px solid gold; }
-    #controls {
-      margin: 20px;
-    }
-    button {
-      padding: 10px 20px;
-      margin: 5px;
-      font-size: 16px;
-    }
-    #score {
-      margin-top: 10px;
-      font-weight: bold;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Corners Game (Improved)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            touch-action: manipulation;
+        }
+        .cell {
+            width: 100%;
+            padding-bottom: 12.5%;
+            position: relative;
+            cursor: pointer;
+            border: 1px solid #e2e8f0;
+            transition: background-color 0.2s;
+        }
+        .cell:hover { background-color: #f1f5f9; }
+        .cell.highlight-claimable {
+             background-color: #fef9c3; /* yellow-100 */
+             cursor: pointer;
+        }
+        .cell .dot-container {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .dot {
+            width: 50%;
+            height: 50%;
+            border-radius: 50%;
+            transition: all 0.2s ease-in-out;
+        }
+        .player1 { background-color: #3b82f6; } /* blue */
+        .player2 { background-color: #ef4444; } /* red */
+
+        /* Shading indicates who gets the point for that corner */
+        .claimed-p1 { box-shadow: 0 0 0 4px #3b82f6 inset; }
+        .claimed-p2 { box-shadow: 0 0 0 4px #ef4444 inset; }
+
+        .square-line {
+            position: absolute;
+            background-color: rgba(0, 0, 0, 0.7);
+            transform-origin: 0 0;
+            z-index: 10;
+        }
+        .modal { transition: opacity 0.25s ease; }
+    </style>
 </head>
-<body>
-  <h1>Corners Game</h1>
-  <div id="controls">
-    <button onclick="resetGame()">Restart</button>
-    <button onclick="toggleMode()">Mode: 2 Player</button>
-    <div id="score">Red: 0 | Blue: 0</div>
-  </div>
-  <div id="gameBoard"></div>
+<body class="bg-slate-100 text-slate-800 flex items-center justify-center min-h-screen">
 
-  <script>
-    const size = 7;
-    let currentPlayer = 'red';
-    let mode = '2player';
-    let board = [];
-    let score = { red: 0, blue: 0 };
+    <div id="start-screen" class="text-center p-8 bg-white rounded-lg shadow-lg">
+        <h1 class="text-4xl font-bold mb-6">Corners Game</h1>
+        <div class="space-y-4">
+            <button id="two-player-btn" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-lg text-lg transition">2 Player Mode</button>
+            <button id="vs-computer-btn" class="w-full bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-6 rounded-lg text-lg transition">VS Computer</button>
+        </div>
+    </div>
 
-    const gameBoard = document.getElementById('gameBoard');
-    const scoreDisplay = document.getElementById('score');
-    const modeButton = document.querySelector('#controls button:nth-child(2)');
+    <div id="game-container" class="hidden w-full max-w-4xl mx-auto p-4 md:p-6">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Game Info Column -->
+            <div class="lg:col-span-1 bg-white p-6 rounded-xl shadow-md order-2 lg:order-1 flex flex-col">
+                <h1 class="text-3xl font-bold mb-4 text-center">Corners</h1>
+                <div class="flex justify-around mb-4 text-center">
+                    <div>
+                        <h2 class="text-xl font-semibold text-blue-600">Player 1</h2>
+                        <p id="score1" class="text-3xl font-bold">0</p>
+                    </div>
+                    <div>
+                        <h2 id="player2-label" class="text-xl font-semibold text-red-600">Player 2</h2>
+                        <p id="score2" class="text-3xl font-bold">0</p>
+                    </div>
+                </div>
+                <div id="turn-indicator" class="text-center text-lg font-medium p-3 rounded-lg mb-4">
+                    Current Turn: <span id="current-player" class="font-bold"></span>
+                </div>
+                <div id="game-state-info" class="text-center font-medium p-3 rounded-lg bg-gray-100 mb-4 h-20 flex items-center justify-center">
+                    <p id="info-message"></p>
+                </div>
 
-    function createBoard() {
-      gameBoard.innerHTML = '';
-      board = [];
-      for (let r = 0; r < size; r++) {
-        let row = [];
-        for (let c = 0; c < size; c++) {
-          const cell = document.createElement('div');
-          cell.className = 'cell';
-          cell.dataset.row = r;
-          cell.dataset.col = c;
-          cell.onclick = () => handleClick(r, c, cell);
-          gameBoard.appendChild(cell);
-          row.push(null);
-        }
-        board.push(row);
-      }
-    }
+                 <div id="action-buttons" class="space-y-3">
+                    <button id="claim-btn" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition hidden">Claim a Square</button>
+                    <button id="skip-claim-btn" class="w-full bg-gray-400 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg transition hidden">Skip Claim & Place Mark</button>
+                </div>
+                <div class="flex-grow"></div>
+                <button id="reset-btn" class="mt-4 w-full bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg transition">New Game</button>
+            </div>
 
-    function handleClick(r, c, cell) {
-      if (board[r][c]) return; // already taken
-      board[r][c] = currentPlayer;
-      cell.classList.add(currentPlayer);
-      checkAndMarkSquares();
-      updateScore();
-      if (mode === 'vsComputer' && currentPlayer === 'red') {
-        currentPlayer = 'blue';
-        setTimeout(computerMove, 300);
-      } else {
-        currentPlayer = currentPlayer === 'red' ? 'blue' : 'red';
-      }
-    }
+            <!-- Game Board Column -->
+            <div class="lg:col-span-2 order-1 lg:order-2 relative">
+                 <div id="board-container" class="relative">
+                    <div id="board" class="grid grid-cols-8 bg-white rounded-xl shadow-lg aspect-square"></div>
+                    <div id="line-container" class="absolute top-0 left-0 w-full h-full pointer-events-none"></div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-    function checkAndMarkSquares() {
-      for (let r1 = 0; r1 < size; r1++) {
-        for (let c1 = 0; c1 < size; c1++) {
-          for (let r2 = r1 + 1; r2 < size; r2++) {
-            for (let c2 = c1 + 1; c2 < size; c2++) {
-              if (
-                board[r1][c1] === currentPlayer &&
-                board[r1][c2] === currentPlayer &&
-                board[r2][c1] === currentPlayer &&
-                board[r2][c2] === currentPlayer
-              ) {
-                claimCorner(r1, c1);
-                claimCorner(r1, c2);
-                claimCorner(r2, c1);
-                claimCorner(r2, c2);
-              }
+    <!-- Modal -->
+    <div id="modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+        <div class="bg-white p-8 rounded-lg shadow-2xl text-center max-w-sm w-full">
+            <h2 id="modal-title" class="text-3xl font-bold mb-4">Game Over!</h2>
+            <p id="modal-message" class="text-lg mb-6"></p>
+            <button id="play-again-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-lg text-lg transition">Play Again</button>
+        </div>
+    </div>
+
+    <script>
+        // --- DOM Elements ---
+        const startScreen = document.getElementById('start-screen');
+        const twoPlayerBtn = document.getElementById('two-player-btn');
+        const vsComputerBtn = document.getElementById('vs-computer-btn');
+        const gameContainer = document.getElementById('game-container');
+        const board = document.getElementById('board');
+        const score1El = document.getElementById('score1');
+        const score2El = document.getElementById('score2');
+        const player2Label = document.getElementById('player2-label');
+        const turnIndicator = document.getElementById('turn-indicator');
+        const currentPlayerEl = document.getElementById('current-player');
+        const infoMessage = document.getElementById('info-message');
+        const claimBtn = document.getElementById('claim-btn');
+        const skipClaimBtn = document.getElementById('skip-claim-btn');
+        const resetBtn = document.getElementById('reset-btn');
+        const lineContainer = document.getElementById('line-container');
+        const modal = document.getElementById('modal');
+        const modalTitle = document.getElementById('modal-title');
+        const modalMessage = document.getElementById('modal-message');
+        const playAgainBtn = document.getElementById('play-again-btn');
+
+        // --- Game State ---
+        const GRID_SIZE = 8;
+        let boardState = [];
+        let claimedCorners = {}; // index -> player
+        let currentPlayer = 1;
+        let gameMode = '2p';
+        let gameOver = false;
+        let unclaimedSquares = [];
+        let currentPhase = 'PLACE_MARK'; // or 'CLAIM_SQUARE', 'MUST_PLACE_BONUS_MARK'
+        
+        const SCORING_RULE = 'ORIGINAL_OWNER';
+
+        // --- Game Setup ---
+        function initializeGame() {
+            boardState = Array(GRID_SIZE * GRID_SIZE).fill(0);
+            claimedCorners = {};
+            currentPlayer = 1;
+            scores = { 1: 0, 2: 0 };
+            gameOver = false;
+            unclaimedSquares = [];
+            currentPhase = 'PLACE_MARK';
+            
+            board.innerHTML = '';
+            lineContainer.innerHTML = '';
+            modal.classList.add('hidden');
+
+            for (let i = 0; i < GRID_SIZE * GRID_SIZE; i++) {
+                const cell = document.createElement('div');
+                cell.classList.add('cell');
+                cell.dataset.index = i;
+                const dotContainer = document.createElement('div');
+                dotContainer.classList.add('dot-container');
+                const dot = document.createElement('div');
+                dot.classList.add('dot');
+                dotContainer.appendChild(dot);
+                cell.appendChild(dotContainer);
+                cell.addEventListener('click', handleCellClick);
+                board.appendChild(cell);
             }
-          }
+            updateUI();
         }
-      }
-    }
 
-    function claimCorner(r, c) {
-      const index = r * size + c;
-      const cell = gameBoard.children[index];
-      if (!cell.classList.contains('claimed')) {
-        cell.classList.add('claimed');
-        score[currentPlayer]++;
-      }
-    }
+        // --- Event Listeners ---
+        twoPlayerBtn.addEventListener('click', () => startGame('2p'));
+        vsComputerBtn.addEventListener('click', () => startGame('cpu'));
+        resetBtn.addEventListener('click', () => {
+            startScreen.style.display = 'block';
+            gameContainer.classList.add('hidden');
+        });
+        playAgainBtn.addEventListener('click', () => {
+             modal.classList.add('hidden');
+             startScreen.style.display = 'block';
+             gameContainer.classList.add('hidden');
+        });
+        claimBtn.addEventListener('click', handleClaimAction);
+        skipClaimBtn.addEventListener('click', handleSkipClaimAction);
 
-    function updateScore() {
-      scoreDisplay.textContent = `Red: ${score.red} | Blue: ${score.blue}`;
-    }
-
-    function computerMove() {
-      let empty = [];
-      for (let r = 0; r < size; r++) {
-        for (let c = 0; c < size; c++) {
-          if (!board[r][c]) empty.push({ r, c });
+        function startGame(mode) {
+            gameMode = mode;
+            player2Label.textContent = (mode === 'cpu') ? 'Computer' : 'Player 2';
+            startScreen.style.display = 'none';
+            gameContainer.classList.remove('hidden');
+            initializeGame();
         }
-      }
-      if (empty.length === 0) return;
-      const { r, c } = empty[Math.floor(Math.random() * empty.length)];
-      const cell = gameBoard.children[r * size + c];
-      handleClick(r, c, cell);
-    }
 
-    function resetGame() {
-      currentPlayer = 'red';
-      score = { red: 0, blue: 0 };
-      updateScore();
-      createBoard();
-    }
+        // --- Main UI Update Function ---
+        function updateUI() {
+            // Update Scores
+            let newScores = { 1: 0, 2: 0 };
+            for(const index in claimedCorners) {
+                newScores[claimedCorners[index]]++;
+            }
+            scores = newScores;
+            score1El.textContent = scores[1];
+            score2El.textContent = scores[2];
 
-    function toggleMode() {
-      mode = mode === '2player' ? 'vsComputer' : '2player';
-      modeButton.textContent = `Mode: ${mode === '2player' ? '2 Player' : 'Vs Computer'}`;
-      resetGame();
-    }
+            // Update Turn Indicator
+            const playerName = currentPlayer === 1 ? 'Player 1' : (gameMode === 'cpu' ? 'Computer' : 'Player 2');
+            currentPlayerEl.textContent = playerName;
+            turnIndicator.classList.toggle('bg-blue-200', currentPlayer === 1);
+            turnIndicator.classList.toggle('text-blue-800', currentPlayer === 1);
+            turnIndicator.classList.toggle('bg-red-200', currentPlayer === 2);
+            turnIndicator.classList.toggle('text-red-800', currentPlayer === 2);
 
-    // Init
-    createBoard();
-  </script>
+            // Update Action Buttons & Info Message
+            claimBtn.classList.add('hidden');
+            skipClaimBtn.classList.add('hidden');
+            clearVisualHighlights();
+
+            const availableToClaim = unclaimedSquares.filter(sq => sq.claimedBy === 0);
+
+            if (currentPhase === 'CLAIM_SQUARE') {
+                infoMessage.textContent = 'Click on a highlighted corner to claim that square.';
+                skipClaimBtn.classList.remove('hidden');
+                highlightClaimableSquares();
+            } else if (currentPhase === 'MUST_PLACE_BONUS_MARK') {
+                infoMessage.textContent = 'Claim successful! Now place your bonus mark.';
+            } else { // PLACE_MARK
+                if (availableToClaim.length > 0) {
+                    infoMessage.textContent = 'You can claim a square or place a new mark.';
+                    claimBtn.classList.remove('hidden');
+                    claimBtn.textContent = `Claim a Square (${availableToClaim.length})`;
+                    highlightClaimableSquares(); // Show highlights before user decides to claim
+                } else {
+                    infoMessage.textContent = 'Place a new mark on any empty point.';
+                }
+            }
+        }
+        
+        // --- Game Flow & Actions ---
+        function handleCellClick(event) {
+            if (gameOver) return;
+            const index = parseInt(event.currentTarget.dataset.index);
+
+            if (currentPhase === 'CLAIM_SQUARE') {
+                const squareToClaim = unclaimedSquares.find(sq => sq.corners.includes(index) && sq.claimedBy === 0);
+                if (squareToClaim) {
+                    executeClaim(squareToClaim);
+                }
+                return;
+            }
+
+            if (currentPhase === 'PLACE_MARK' || currentPhase === 'MUST_PLACE_BONUS_MARK') {
+                if (boardState[index] !== 0) return;
+
+                const wasBonusMove = currentPhase === 'MUST_PLACE_BONUS_MARK';
+                placeMark(index);
+                
+                if (!wasBonusMove) {
+                    switchTurn();
+                } else {
+                    currentPhase = 'PLACE_MARK';
+                    updateUI();
+                     if (gameMode === 'cpu' && currentPlayer === 2) {
+                        setTimeout(computerTurn, 500);
+                     }
+                }
+            }
+        }
+        
+        function handleClaimAction() {
+            currentPhase = 'CLAIM_SQUARE';
+            updateUI();
+        }
+
+        function handleSkipClaimAction() {
+            currentPhase = 'PLACE_MARK';
+            updateUI();
+        }
+
+        function executeClaim(squareToClaim) {
+            squareToClaim.claimedBy = currentPlayer;
+            
+            if (SCORING_RULE === 'CLAIMER_GETS_ALL') {
+                squareToClaim.corners.forEach(cornerIndex => {
+                    claimedCorners[cornerIndex] = currentPlayer;
+                });
+            } else { // 'ORIGINAL_OWNER'
+                squareToClaim.corners.forEach(cornerIndex => {
+                    if (!claimedCorners[cornerIndex]) {
+                       const owner = boardState[cornerIndex];
+                       claimedCorners[cornerIndex] = owner;
+                    }
+                });
+            }
+
+            squareToClaim.corners.forEach(cornerIndex => {
+                const cornerOwner = claimedCorners[cornerIndex];
+                const cell = board.querySelector(`[data-index='${cornerIndex}']`);
+                cell.classList.remove('claimed-p1', 'claimed-p2');
+                cell.classList.add(`claimed-p${cornerOwner}`);
+            });
+            
+            currentPhase = 'MUST_PLACE_BONUS_MARK';
+            updateUI();
+        }
+
+        function placeMark(index) {
+            boardState[index] = currentPlayer;
+            drawDot(index, currentPlayer);
+            checkForNewSquares();
+        }
+
+        function switchTurn() {
+            currentPlayer = currentPlayer === 1 ? 2 : 1;
+            currentPhase = 'PLACE_MARK';
+            
+            if (checkGameOver()) {
+                endGame();
+                return;
+            }
+
+            updateUI();
+
+            if (gameMode === 'cpu' && currentPlayer === 2 && !gameOver) {
+                setTimeout(computerTurn, 800);
+            }
+        }
+
+        function computerTurn() {
+            if (gameOver) return;
+            const availableToClaim = unclaimedSquares.filter(sq => sq.claimedBy === 0);
+
+            if (availableToClaim.length > 0) {
+                executeClaim(availableToClaim[0]);
+                setTimeout(placeComputerMark, 800);
+                return;
+            }
+
+            placeComputerMark();
+            switchTurn();
+        }
+        
+        function placeComputerMark() {
+            let availableCells = [];
+            for (let i = 0; i < boardState.length; i++) {
+                if (boardState[i] === 0) availableCells.push(i);
+            }
+            if (availableCells.length === 0) return;
+
+            const moveIndex = availableCells[Math.floor(Math.random() * availableCells.length)];
+            placeMark(moveIndex);
+        }
+
+        // --- Square Detection (FIXED) ---
+        function checkForNewSquares() {
+            const player1Points = [];
+            const player2Points = [];
+            for (let i = 0; i < boardState.length; i++) {
+                const point = { x: i % GRID_SIZE, y: Math.floor(i / GRID_SIZE) };
+                if (boardState[i] === 1) {
+                    player1Points.push(point);
+                } else if (boardState[i] === 2) {
+                    player2Points.push(point);
+                }
+            }
+
+            const findSquaresForPlayer = (pointList) => {
+                if (pointList.length < 4) return;
+                for (let i = 0; i < pointList.length; i++) {
+                    for (let j = i + 1; j < pointList.length; j++) {
+                        for (let k = j + 1; k < pointList.length; k++) {
+                            for (let l = k + 1; l < pointList.length; l++) {
+                                const corners = [pointList[i], pointList[j], pointList[k], pointList[l]];
+                                if (isSquare(corners)) {
+                                    const cornerIndices = corners.map(p => p.y * GRID_SIZE + p.x).sort((a,b) => a-b);
+                                    const id = cornerIndices.join('-');
+                                    if (!unclaimedSquares.some(sq => sq.id === id)) {
+                                         unclaimedSquares.push({ id: id, corners: cornerIndices, claimedBy: 0 });
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            };
+
+            findSquaresForPlayer(player1Points);
+            findSquaresForPlayer(player2Points);
+        }
+
+        function isSquare(points) {
+            const distSq = (p1, p2) => (p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2;
+            const distances = [
+                distSq(points[0], points[1]), distSq(points[0], points[2]), distSq(points[0], points[3]),
+                distSq(points[1], points[2]), distSq(points[1], points[3]), distSq(points[2], points[3])
+            ].sort((a,b) => a-b);
+            
+            return distances[0] > 0 && distances[0] === distances[1] && distances[0] === distances[2] && distances[0] === distances[3]
+                && Math.abs(distances[4] - 2 * distances[0]) < 0.001
+                && Math.abs(distances[5] - 2 * distances[0]) < 0.001;
+        }
+
+        // --- Visual Helpers ---
+        function drawDot(index, player) {
+            board.querySelector(`[data-index='${index}'] .dot`).classList.add(`player${player}`);
+        }
+
+        function drawLine(p1, p2, color) {
+            const cellWidth = board.firstChild.offsetWidth;
+            const cellHeight = board.firstChild.offsetHeight;
+
+            const x1 = p1.x * cellWidth;
+            const y1 = p1.y * cellHeight;
+            const x2 = p2.x * cellWidth;
+            const y2 = p2.y * cellHeight;
+
+            const length = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+            const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+
+            const line = document.createElement('div');
+            line.classList.add('square-line');
+            line.style.height = '3px';
+            line.style.backgroundColor = color;
+            line.style.width = `${length}px`;
+            line.style.left = `${x1}px`;
+            line.style.top = `${y1}px`;
+            line.style.transform = `rotate(${angle}deg)`;
+            lineContainer.appendChild(line);
+        }
+
+        function highlightSquareWithLines(corners, color) {
+            const points = corners.map(index => ({
+                x: (index % GRID_SIZE) + 0.5,
+                y: Math.floor(index / GRID_SIZE) + 0.5
+            }));
+
+            const center = {
+                x: points.reduce((sum, p) => sum + p.x, 0) / 4,
+                y: points.reduce((sum, p) => sum + p.y, 0) / 4
+            };
+            points.sort((a, b) => Math.atan2(a.y - center.y, a.x - center.x) - Math.atan2(b.y - center.y, b.x - center.x));
+
+            for (let i = 0; i < 4; i++) {
+                const p1 = points[i];
+                const p2 = points[(i + 1) % 4];
+                drawLine(p1, p2, color);
+            }
+        }
+
+        function highlightClaimableSquares() {
+            unclaimedSquares.forEach(sq => {
+                if (sq.claimedBy === 0) {
+                    sq.corners.forEach(index => {
+                        board.querySelector(`[data-index='${index}']`).classList.add('highlight-claimable');
+                    });
+                    const cornerOwner = boardState[sq.corners[0]];
+                    const color = cornerOwner === 1 ? '#3b82f6' : '#ef4444';
+                    highlightSquareWithLines(sq.corners, color);
+                }
+            });
+        }
+        
+        function clearVisualHighlights() {
+             lineContainer.innerHTML = '';
+             board.querySelectorAll('.highlight-claimable').forEach(c => c.classList.remove('highlight-claimable'));
+        }
+
+        // --- Game Over ---
+        function checkGameOver() {
+            if (boardState.every(cell => cell !== 0)) {
+                gameOver = true;
+                return true;
+            }
+            return false;
+        }
+
+        function endGame() {
+            let message = '';
+            if (scores[1] > scores[2]) {
+                message = 'Player 1 Wins!';
+            } else if (scores[2] > scores[1]) {
+                message = (gameMode === 'cpu' ? 'Computer' : 'Player 2') + ' Wins!';
+            } else {
+                message = "It's a Draw!";
+            }
+            
+            modalTitle.textContent = 'Game Over!';
+            modalMessage.textContent = message;
+            modal.classList.remove('hidden');
+        }
+
+    </script>
 </body>
 </html>
