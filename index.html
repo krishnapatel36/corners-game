@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Corners Game (Improved)</title>
+    <title>Corners Game</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -117,7 +117,6 @@
 
     <div id="game-container" class="hidden w-full max-w-6xl mx-auto p-4 md:p-6">
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <!-- Game Info Column -->
             <div class="lg:col-span-1 bg-gray-800 text-white p-6 rounded-2xl shadow-2xl order-2 lg:order-1 flex flex-col border-4 border-purple-500">
                 <h1 class="text-4xl font-black mb-4 text-center tracking-wider">CORNERS</h1>
                 <div class="flex justify-around items-center mb-4 text-center">
@@ -146,7 +145,6 @@
                 <button id="reset-btn" class="mt-4 w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-5 rounded-lg transition transform hover:scale-105">New Game</button>
             </div>
 
-            <!-- Game Board Column -->
             <div class="lg:col-span-2 order-1 lg:order-2 relative">
                  <div id="board-container" class="relative">
                     <div id="board" class="grid bg-gray-800/50 backdrop-blur-sm rounded-2xl shadow-lg aspect-square border-4 border-purple-400/50"></div>
@@ -155,7 +153,6 @@
         </div>
     </div>
 
-    <!-- Modal -->
     <div id="modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center hidden z-50">
         <div class="bg-gray-800 text-white p-8 rounded-2xl shadow-2xl text-center max-w-sm w-full border-4 border-purple-500">
             <h2 id="modal-title" class="text-4xl font-black mb-4">Game Over!</h2>
@@ -415,6 +412,33 @@
                 const dot = board.querySelector(`[data-index='${index}'] .dot`);
                 dot.classList.remove(`player${currentPlayer}-outline`, 'selected-for-claim');
                 dot.classList.add(`player${currentPlayer}-filled`);
+                // --- Success Animation: Star Burst ---
+                const cell = board.querySelector(`[data-index='${index}']`);
+                let burst = document.createElement('div');
+                burst.className = 'star-burst';
+                burst.style.pointerEvents = 'none';
+                burst.innerHTML = `
+                    <svg width="100%" height="100%" viewBox="0 0 100 100">
+                        <g>
+                            <circle cx="50" cy="50" r="18" fill="none" stroke="#f6e05e" stroke-width="6" opacity="0.7"/>
+                            <g>
+                                <line x1="50" y1="10" x2="50" y2="30" stroke="#f6e05e" stroke-width="4"/>
+                                <line x1="50" y1="70" x2="50" y2="90" stroke="#f6e05e" stroke-width="4"/>
+                                <line x1="10" y1="50" x2="30" y2="50" stroke="#f6e05e" stroke-width="4"/>
+                                <line x1="70" y1="50" x2="90" y2="50" stroke="#f6e05e" stroke-width="4"/>
+                                <line x1="25" y1="25" x2="38" y2="38" stroke="#f6e05e" stroke-width="3"/>
+                                <line x1="75" y1="25" x2="62" y2="38" stroke="#f6e05e" stroke-width="3"/>
+                                <line x1="25" y1="75" x2="38" y2="62" stroke="#f6e05e" stroke-width="3"/>
+                                <line x1="75" y1="75" x2="62" y2="62" stroke="#f6e05e" stroke-width="3"/>
+                            </g>
+                        </g>
+                    </svg>
+                `;
+                cell.appendChild(burst);
+                setTimeout(() => {
+                    burst.style.opacity = 0;
+                    burst.remove();
+                }, 800);
             });
             selectedForClaim = [];
 
@@ -463,33 +487,102 @@
             }
         }
 
+        // --- UPDATED AI LOGIC ---
         function computerTurn() {
             if (gameOver) return;
 
+            // Handle Last Chance round
             if (currentPhase === 'LAST_CHANCE') {
-                const potentialSquare = findUnclaimedSquareForAI();
-                if (potentialSquare) {
-                    executeClaim(potentialSquare.corners, potentialSquare.id);
+                const winningMove = findUnclaimedSquareForAI();
+                if (winningMove) {
+                    executeClaim(winningMove.corners, winningMove.id);
                 } else {
                     handlePassAction();
                 }
                 return;
             }
             
-            const potentialSquare = findUnclaimedSquareForAI();
-            if (potentialSquare) {
-                executeClaim(potentialSquare.corners, potentialSquare.id);
-                setTimeout(() => {
-                    placeComputerMark();
+            // Priority 1: Claim an existing square
+            const claimableSquare = findUnclaimedSquareForAI();
+            if (claimableSquare) {
+                executeClaim(claimableSquare.corners, claimableSquare.id);
+                setTimeout(() => { // Bonus move logic
+                    placeSmartComputerMark();
                     switchTurn();
                 }, 800);
                 return;
             }
 
-            placeComputerMark();
+            // Priority 2 & 3: Make a strategic mark
+            placeSmartComputerMark();
             switchTurn();
         }
         
+        function placeSmartComputerMark() {
+            // Priority 2: Find a winning move to complete a square
+            const winningMove = findPotentialSquare(2); // AI is player 2
+            if (winningMove !== null) {
+                placeMark(winningMove);
+                return;
+            }
+            
+            // Priority 3: Block opponent's winning move
+            const blockingMove = findPotentialSquare(1); // Player is player 1
+            if (blockingMove !== null) {
+                placeMark(blockingMove);
+                return;
+            }
+
+            // Priority 4: Place a random mark
+            placeRandomComputerMark();
+        }
+
+        function findPotentialSquare(player) {
+            const playerPoints = [];
+            const emptyCells = [];
+            for (let i = 0; i < boardState.length; i++) {
+                if (boardState[i] === player) {
+                    playerPoints.push({ x: i % GRID_COLS, y: Math.floor(i / GRID_COLS) });
+                } else if (boardState[i] === 0) {
+                    emptyCells.push(i);
+                }
+            }
+            if (playerPoints.length < 3) return null;
+
+            for (let i = 0; i < playerPoints.length; i++) {
+                for (let j = i + 1; j < playerPoints.length; j++) {
+                    for (let k = j + 1; k < playerPoints.length; k++) {
+                        const p1 = playerPoints[i];
+                        const p2 = playerPoints[j];
+                        const p3 = playerPoints[k];
+                        const points = [p1, p2, p3];
+                        
+                        // Check all 3 possible fourth corners
+                        for(let m = 0; m < 3; m++) {
+                            // Let points[m] be the corner with the right angle
+                            const pA = points[m];
+                            const pB = points[(m+1)%3];
+                            const pC = points[(m+2)%3];
+
+                            const p4 = {
+                                x: pB.x + pC.x - pA.x,
+                                y: pB.y + pC.y - pA.y
+                            };
+
+                            const potentialSquarePoints = [pA, pB, pC, p4];
+                            if(isSquare(potentialSquarePoints)) {
+                                const p4Index = p4.y * GRID_COLS + p4.x;
+                                if (p4.x >= 0 && p4.x < GRID_COLS && p4.y >= 0 && p4.y < GRID_ROWS && boardState[p4Index] === 0) {
+                                    return p4Index;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+
         function findUnclaimedSquareForAI() {
             const aiPoints = [];
             for (let i = 0; i < boardState.length; i++) {
@@ -518,7 +611,7 @@
             return null;
         }
 
-        function placeComputerMark() {
+        function placeRandomComputerMark() {
             let availableCells = [];
             for (let i = 0; i < boardState.length; i++) {
                 if (boardState[i] === 0) availableCells.push(i);
@@ -528,55 +621,42 @@
             placeMark(moveIndex);
         }
 
-        // UPDATED isSquare function to allow axis-aligned AND proper diagonal squares
         function isSquare(points) {
             if (points.length !== 4) return false;
 
-            // Find a reference point (e.g., the first one)
             const p1 = points[0];
             const others = points.slice(1);
 
-            // Iterate through all combinations of the other 3 points to find the two adjacent to p1
             for (let i = 0; i < 3; i++) {
                 for (let j = 0; j < 3; j++) {
                     if (i === j) continue;
 
                     const p_i = others[i];
                     const p_j = others[j];
-                    // The remaining point is the one diagonal to p1
                     const p_k_index = 3 - i - j;
                     const p_k = others[p_k_index];
 
-                    // Create vectors from the reference point p1 to the two potential adjacent points
                     const v_i = { x: p_i.x - p1.x, y: p_i.y - p1.y };
                     const v_j = { x: p_j.x - p1.x, y: p_j.y - p1.y };
 
-                    // Check for perpendicularity (dot product is zero) and equal length sides
                     const dotProduct = v_i.x * v_j.x + v_i.y * v_j.y;
                     const lenSq_i = v_i.x**2 + v_i.y**2;
                     const lenSq_j = v_j.x**2 + v_j.y**2;
 
                     if (lenSq_i > 0 && Math.abs(lenSq_i - lenSq_j) < 0.001 && Math.abs(dotProduct) < 0.001) {
-                        // If they are perpendicular and have same length, they could be the sides of a square.
-                        // Check if the fourth point completes the parallelogram.
                         if (Math.abs(p_k.x - (p1.x + v_i.x + v_j.x)) < 0.001 && Math.abs(p_k.y - (p1.y + v_i.y + v_j.y)) < 0.001) {
                             
-                            // It's a square. Now check its orientation.
-                            
-                            // Axis-aligned check: one vector has x=0, the other has y=0
-                            const isAxisAligned = (Math.abs(v_i.x) < 0.001 && Math.abs(v_j.y) < 0.001) || (Math.abs(v_i.y) < 0.001 && Math.abs(v_j.x) < 0.001);
-                            
-                            // "Proper" diagonal check: for both vectors, |dx| == |dy|
-                            const isProperDiagonal = Math.abs(Math.abs(v_i.x) - Math.abs(v_i.y)) < 0.001 && Math.abs(Math.abs(v_j.x) - Math.abs(v_j.y)) < 0.001;
+                            const isAxisAligned = (Math.abs(v_i.x) < 0.001 || Math.abs(v_i.y) < 0.001);
+                            const isProperDiagonal = Math.abs(Math.abs(v_i.x) - Math.abs(v_i.y)) < 0.001;
 
                             if (isAxisAligned || isProperDiagonal) {
-                                return true; // It's a validly oriented square
+                                return true;
                             }
                         }
                     }
                 }
             }
-            return false; // No valid square found
+            return false;
         }
 
         function drawDot(index, player) {
@@ -591,7 +671,7 @@
         function endGame() {
             if(gameOver) return;
             gameOver = true;
-            updateUI(); // Final score update
+            updateUI();
             let message = '';
             if (scores[1] > scores[2]) {
                 message = 'Player 1 Wins!';
@@ -606,7 +686,6 @@
             modal.classList.remove('hidden');
         }
 
-        // --- Initial Setup on Page Load ---
         document.addEventListener('DOMContentLoaded', setupStartScreen);
 
     </script>
