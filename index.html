@@ -148,8 +148,8 @@
 
             <!-- Game Board Column -->
             <div class="lg:col-span-2 order-1 lg:order-2 relative">
-                 <div id="board-container" class="aspect-square w-full relative">
-                    <div id="board" class="grid bg-gray-800/50 backdrop-blur-sm rounded-2xl shadow-lg border-4 border-purple-400/50"></div>
+                 <div id="board-container" class="relative">
+                    <div id="board" class="grid bg-gray-800/50 backdrop-blur-sm rounded-2xl shadow-lg aspect-square border-4 border-purple-400/50"></div>
                  </div>
             </div>
         </div>
@@ -233,7 +233,8 @@
             board.innerHTML = '';
             modal.classList.add('hidden');
             
-            board.style.gridTemplateColumns = `repeat(${GRID_COLS}, minmax(0, 1fr))`;
+            dynamicStyles.innerHTML = `.cell { width: ${100/GRID_COLS}%; padding-bottom: ${100/GRID_COLS}%; }`;
+            board.style.gridTemplateColumns = `repeat(${GRID_COLS}, 1fr)`;
 
             for (let i = 0; i < GRID_ROWS * GRID_COLS; i++) {
                 const cell = document.createElement('div');
@@ -414,33 +415,6 @@
                 const dot = board.querySelector(`[data-index='${index}'] .dot`);
                 dot.classList.remove(`player${currentPlayer}-outline`, 'selected-for-claim');
                 dot.classList.add(`player${currentPlayer}-filled`);
-                // --- Success Animation: Star Burst ---
-                const cell = board.querySelector(`[data-index='${index}']`);
-                let burst = document.createElement('div');
-                burst.className = 'star-burst';
-                burst.style.pointerEvents = 'none';
-                burst.innerHTML = `
-                    <svg width="100%" height="100%" viewBox="0 0 100 100">
-                        <g>
-                            <circle cx="50" cy="50" r="18" fill="none" stroke="#f6e05e" stroke-width="6" opacity="0.7"/>
-                            <g>
-                                <line x1="50" y1="10" x2="50" y2="30" stroke="#f6e05e" stroke-width="4"/>
-                                <line x1="50" y1="70" x2="50" y2="90" stroke="#f6e05e" stroke-width="4"/>
-                                <line x1="10" y1="50" x2="30" y2="50" stroke="#f6e05e" stroke-width="4"/>
-                                <line x1="70" y1="50" x2="90" y2="50" stroke="#f6e05e" stroke-width="4"/>
-                                <line x1="25" y1="25" x2="38" y2="38" stroke="#f6e05e" stroke-width="3"/>
-                                <line x1="75" y1="25" x2="62" y2="38" stroke="#f6e05e" stroke-width="3"/>
-                                <line x1="25" y1="75" x2="38" y2="62" stroke="#f6e05e" stroke-width="3"/>
-                                <line x1="75" y1="75" x2="62" y2="62" stroke="#f6e05e" stroke-width="3"/>
-                            </g>
-                        </g>
-                    </svg>
-                `;
-                cell.appendChild(burst);
-                setTimeout(() => {
-                    burst.style.opacity = 0;
-                    burst.remove();
-                }, 800);
             });
             selectedForClaim = [];
 
@@ -554,16 +528,55 @@
             placeMark(moveIndex);
         }
 
+        // UPDATED isSquare function to allow axis-aligned AND proper diagonal squares
         function isSquare(points) {
-            const distSq = (p1, p2) => (p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2;
-            const distances = [
-                distSq(points[0], points[1]), distSq(points[0], points[2]), distSq(points[0], points[3]),
-                distSq(points[1], points[2]), distSq(points[1], points[3]), distSq(points[2], points[3])
-            ].sort((a,b) => a-b);
-            
-            return distances[0] > 0 && distances[0] === distances[1] && distances[0] === distances[2] && distances[0] === distances[3]
-                && Math.abs(distances[4] - 2 * distances[0]) < 0.001
-                && Math.abs(distances[5] - 2 * distances[0]) < 0.001;
+            if (points.length !== 4) return false;
+
+            // Find a reference point (e.g., the first one)
+            const p1 = points[0];
+            const others = points.slice(1);
+
+            // Iterate through all combinations of the other 3 points to find the two adjacent to p1
+            for (let i = 0; i < 3; i++) {
+                for (let j = 0; j < 3; j++) {
+                    if (i === j) continue;
+
+                    const p_i = others[i];
+                    const p_j = others[j];
+                    // The remaining point is the one diagonal to p1
+                    const p_k_index = 3 - i - j;
+                    const p_k = others[p_k_index];
+
+                    // Create vectors from the reference point p1 to the two potential adjacent points
+                    const v_i = { x: p_i.x - p1.x, y: p_i.y - p1.y };
+                    const v_j = { x: p_j.x - p1.x, y: p_j.y - p1.y };
+
+                    // Check for perpendicularity (dot product is zero) and equal length sides
+                    const dotProduct = v_i.x * v_j.x + v_i.y * v_j.y;
+                    const lenSq_i = v_i.x**2 + v_i.y**2;
+                    const lenSq_j = v_j.x**2 + v_j.y**2;
+
+                    if (lenSq_i > 0 && Math.abs(lenSq_i - lenSq_j) < 0.001 && Math.abs(dotProduct) < 0.001) {
+                        // If they are perpendicular and have same length, they could be the sides of a square.
+                        // Check if the fourth point completes the parallelogram.
+                        if (Math.abs(p_k.x - (p1.x + v_i.x + v_j.x)) < 0.001 && Math.abs(p_k.y - (p1.y + v_i.y + v_j.y)) < 0.001) {
+                            
+                            // It's a square. Now check its orientation.
+                            
+                            // Axis-aligned check: one vector has x=0, the other has y=0
+                            const isAxisAligned = (Math.abs(v_i.x) < 0.001 && Math.abs(v_j.y) < 0.001) || (Math.abs(v_i.y) < 0.001 && Math.abs(v_j.x) < 0.001);
+                            
+                            // "Proper" diagonal check: for both vectors, |dx| == |dy|
+                            const isProperDiagonal = Math.abs(Math.abs(v_i.x) - Math.abs(v_i.y)) < 0.001 && Math.abs(Math.abs(v_j.x) - Math.abs(v_j.y)) < 0.001;
+
+                            if (isAxisAligned || isProperDiagonal) {
+                                return true; // It's a validly oriented square
+                            }
+                        }
+                    }
+                }
+            }
+            return false; // No valid square found
         }
 
         function drawDot(index, player) {
