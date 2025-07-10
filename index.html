@@ -5,28 +5,60 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Corners Game</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
-    <style id="dynamic-styles">
-        /* Grid cell styles will be injected here by JavaScript */
-    </style>
     <style>
         body {
             font-family: 'Nunito', sans-serif;
             touch-action: manipulation;
-            background-image: url('https://www.transparenttextures.com/patterns/stardust.png');
             background-color: #1a202c;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
         }
+        
+        /* Animated Background for the whole page */
+        @keyframes bg-pan {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image: 
+                radial-gradient(circle at 20% 20%, rgba(255,107,107,0.3) 0%, transparent 30%),
+                radial-gradient(circle at 80% 70%, rgba(107,159,255,0.3) 0%, transparent 30%);
+            background-size: 200% 200%;
+            animation: bg-pan 15s ease infinite;
+            z-index: -1;
+        }
+
+        .game-sheet {
+            background-color: #fdf6e9;
+            border: 3px solid #4a3f35;
+            padding: 1rem;
+            position: relative;
+            width: 100%;
+            max-width: 1100px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.25);
+            border-radius: 1.5rem;
+        }
+
         .cell {
             aspect-ratio: 1 / 1;
-            width: 100%;
             position: relative;
             cursor: pointer;
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            border: 1px solid #e74c3c;
             transition: background-color 0.2s;
         }
-        .cell:hover { background-color: rgba(255, 255, 255, 0.1); }
+        
+        .cell:hover { background-color: #f9d48b; }
         
         .dot-container {
             position: absolute;
@@ -39,25 +71,22 @@
             width: 60%;
             height: 60%;
             border-radius: 50%;
-            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
             background-color: transparent;
             box-sizing: border-box;
-            transform: scale(0); /* Start scaled down for pop-in animation */
+            transform: scale(0);
         }
         
         .dot.placed {
              transform: scale(1);
         }
 
-        /* Outline state for placed dots */
-        .dot.player1-outline { border: 5px solid #4299e1; }
-        .dot.player2-outline { border: 5px solid #f56565; }
+        .dot.player1-outline { border: 5px solid #3b82f6; }
+        .dot.player2-outline { border: 5px solid #ef4444; }
 
-        /* Filled state for claimed dots */
-        .dot.player1-filled { background-color: #4299e1; border: none; }
-        .dot.player2-filled { background-color: #f56565; border: none; }
+        .dot.player1-filled { background-color: #3b82f6; border: none; }
+        .dot.player2-filled { background-color: #ef4444; border: none; }
 
-        /* Highlight for selection during claim phase */
         .dot.selected-for-claim {
             transform: scale(1.2) !important;
             box-shadow: 0 0 20px #f6e05e;
@@ -66,125 +95,160 @@
         .modal { transition: opacity 0.25s ease; }
 
         .grid-size-btn.active {
-            background-color: #4a5568;
+            background-color: #f39c12;
             color: white;
-            border-color: #4a5568;
+            border-color: #f39c12;
+            transform: scale(1.1);
         }
         
-        .player-avatar {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            border: 4px solid white;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        .action-btn {
+            transition: all 0.1s ease-in-out;
         }
-        
-        .star-burst {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            opacity: 0;
-            animation: burst 0.8s ease-out;
+        .action-btn:active {
+            transform: scale(0.95);
         }
 
-        @keyframes burst {
-            0% { transform: scale(0); opacity: 1; }
-            50% { opacity: 1; }
-            100% { transform: scale(2); opacity: 0; }
+        .claim-line {
+            position: absolute;
+            background-color: #4a3f35;
+            height: 4px;
+            transform-origin: 0 50%;
+            width: 0;
+            transition: width 0.3s ease-out;
+            border-radius: 2px;
+            z-index: 10;
         }
+
+        /* Cool Start Screen Styles */
+        .start-title-char {
+            display: inline-block;
+            opacity: 0;
+            transform: translateY(-50px) rotate(10deg);
+            animation: drop-in 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+        @keyframes drop-in {
+            to {
+                opacity: 1;
+                transform: translateY(0) rotate(0deg);
+            }
+        }
+        
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 10px 0px rgba(255, 255, 255, 0); }
+            50% { box-shadow: 0 0 20px 5px rgba(255, 255, 255, 0.5); }
+        }
+        .start-button-blue {
+            animation: pulse-glow 2s infinite ease-in-out;
+            animation-delay: 0.5s;
+        }
+        .start-button-red {
+            animation: pulse-glow 2s infinite ease-in-out;
+            animation-delay: 1s;
+        }
+        
     </style>
 </head>
-<body class="flex items-center justify-center min-h-screen p-4">
+<body class="p-4">
 
-    <div id="start-screen" class="text-center p-8 bg-gray-800 text-white rounded-2xl shadow-2xl w-full max-w-md border-4 border-purple-500">
-        <h1 class="text-5xl font-black mb-6 tracking-wider">CORNERS</h1>
+    <div id="start-screen" class="game-sheet">
+        <div class="text-center">
+            <h1 id="cool-title" class="text-5xl sm:text-6xl font-black text-gray-800 mb-8 tracking-wider">
+                <!-- Title characters will be injected here -->
+            </h1>
+        </div>
         
-        <div class="mb-4">
-            <label class="text-xl font-bold mb-3 block">Rows</label>
-            <div id="grid-rows-selector" class="flex justify-center gap-2 flex-wrap"></div>
+        <div class="flex justify-center mb-4">
+            <div>
+                <label class="text-xl font-bold mb-3 block text-gray-700">Rows</label>
+                <div id="grid-rows-selector" class="flex justify-center gap-2 flex-wrap"></div>
+            </div>
         </div>
-        <div class="mb-6">
-            <label class="text-xl font-bold mb-3 block">Columns</label>
-            <div id="grid-cols-selector" class="flex justify-center gap-2 flex-wrap"></div>
+        <div class="flex justify-center mb-6">
+            <div>
+                <label class="text-xl font-bold mb-3 block text-gray-700">Columns</label>
+                <div id="grid-cols-selector" class="flex justify-center gap-2 flex-wrap"></div>
+            </div>
         </div>
 
-        <div class="space-y-4 mt-8">
-            <button id="two-player-btn" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-lg text-lg transition transform hover:scale-105">2 Player Mode</button>
-            <button id="vs-computer-btn" class="w-full bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-6 rounded-lg text-lg transition transform hover:scale-105">VS Computer</button>
+        <div class="space-y-4 mt-8 max-w-sm mx-auto">
+            <button id="two-player-btn" class="action-btn start-button-blue w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg text-lg transition transform hover:scale-105">2 Player Mode</button>
+            <button id="vs-computer-btn" class="action-btn start-button-red w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg text-lg transition transform hover:scale-105">VS Computer</button>
         </div>
     </div>
 
-    <div id="game-container" class="hidden w-full max-w-6xl mx-auto p-4 md:p-6">
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div class="lg:col-span-1 bg-gray-800 text-white p-6 rounded-2xl shadow-2xl order-2 lg:order-1 flex flex-col border-4 border-purple-500">
-                <h1 class="text-4xl font-black mb-4 text-center tracking-wider">CORNERS</h1>
-                <div class="flex justify-around items-center mb-4 text-center">
-                    <div>
-                        <img src="https://api.dicebear.com/8.x/bottts/svg?seed=player1&backgroundColor=b6e3f4" alt="Player 1 Avatar" class="player-avatar mx-auto mb-2">
-                        <p id="score1" class="text-4xl font-bold">0</p>
-                    </div>
-                    <div>
-                        <img id="player2-avatar" src="https://api.dicebear.com/8.x/bottts/svg?seed=player2&backgroundColor=f4b6b6" alt="Player 2 Avatar" class="player-avatar mx-auto mb-2">
-                        <p id="score2" class="text-4xl font-bold">0</p>
+    <div id="game-container" class="hidden w-full max-w-7xl mx-auto">
+        <div class="game-sheet">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-8">
+                <div class="md:col-span-2 order-1 flex justify-center items-center">
+                    <div id="board-container" class="relative w-full">
+                        <div id="board" class="grid bg-[#f7b731] rounded-lg shadow-inner"></div>
                     </div>
                 </div>
-                <div id="turn-indicator" class="text-center text-lg font-bold p-3 rounded-lg mb-4 transition-colors duration-300">
-                    <span id="current-player"></span>'s Turn
+                <div class="text-gray-800 p-2 sm:p-4 rounded-lg order-2 flex flex-col">
+                    <h1 class="text-4xl font-black mb-4 text-center tracking-wider">CORNERS</h1>
+                    <div class="flex justify-around items-center mb-4 text-center">
+                        <div>
+                            <span class="text-5xl">🔵</span>
+                            <p id="score1" class="text-4xl font-bold">0</p>
+                        </div>
+                        <div>
+                            <span id="player2-emoji" class="text-5xl">🔴</span>
+                            <p id="score2" class="text-4xl font-bold">0</p>
+                        </div>
+                    </div>
+                    <div id="turn-indicator" class="text-center text-lg font-bold p-3 rounded-lg mb-4 transition-colors duration-300">
+                        <span id="current-player"></span>'s Turn
+                    </div>
+                    <div id="game-state-info" class="text-center font-semibold p-3 rounded-lg bg-yellow-100 text-yellow-800 mb-4 h-24 flex items-center justify-center">
+                        <p id="info-message"></p>
+                    </div>
+                     <div id="action-buttons" class="space-y-3">
+                        <button id="claim-btn" class="action-btn w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-5 rounded-lg transition transform hover:scale-105 hidden">✅ Claim Square</button>
+                        <button id="pass-btn" class="action-btn w-full bg-yellow-500 hover:bg-yellow-600 text-black font-bold py-3 px-5 rounded-lg transition transform hover:scale-105 hidden">⏩ Pass Turn</button>
+                        <button id="cancel-claim-btn" class="action-btn w-full bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-5 rounded-lg transition transform hover:scale-105 hidden">❌ Cancel Claim</button>
+                        <button id="undo-btn" class="action-btn w-full bg-gray-400 hover:bg-gray-500 text-white font-bold py-3 px-5 rounded-lg transition transform hover:scale-105 hidden">↩️ Undo Move</button>
+                    </div>
+                    <div class="flex-grow"></div>
+                    <button id="reset-btn" class="action-btn mt-4 w-full bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-5 rounded-lg transition">New Game</button>
                 </div>
-                <div id="game-state-info" class="text-center font-bold p-3 rounded-lg bg-gray-700 mb-4 h-24 flex items-center justify-center">
-                    <p id="info-message"></p>
-                </div>
-
-                 <div id="action-buttons" class="space-y-3">
-                    <button id="claim-btn" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-5 rounded-lg transition transform hover:scale-105 hidden">Claim Square</button>
-                    <button id="pass-btn" class="w-full bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-3 px-5 rounded-lg transition transform hover:scale-105 hidden">Pass Turn</button>
-                    <button id="cancel-claim-btn" class="w-full bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-5 rounded-lg transition transform hover:scale-105 hidden">Cancel Claim</button>
-                </div>
-                <div class="flex-grow"></div>
-                <button id="reset-btn" class="mt-4 w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-5 rounded-lg transition transform hover:scale-105">New Game</button>
-            </div>
-
-            <div class="lg:col-span-2 order-1 lg:order-2 relative">
-                 <div id="board-container" class="relative">
-                    <div id="board" class="grid bg-gray-800/50 backdrop-blur-sm rounded-2xl shadow-lg aspect-square border-4 border-purple-400/50"></div>
-                 </div>
             </div>
         </div>
     </div>
 
     <div id="modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center hidden z-50">
-        <div class="bg-gray-800 text-white p-8 rounded-2xl shadow-2xl text-center max-w-sm w-full border-4 border-purple-500">
-            <h2 id="modal-title" class="text-4xl font-black mb-4">Game Over!</h2>
+        <div class="bg-white text-gray-800 p-8 rounded-lg shadow-xl text-center max-w-sm w-full border-2 border-gray-300 relative">
+            <h2 id="modal-title" class="text-4xl font-bold mb-4">Game Over!</h2>
             <p id="modal-message" class="text-xl mb-6"></p>
-            <button id="play-again-btn" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-lg text-lg transition transform hover:scale-105">Play Again</button>
+            <button id="play-again-btn" class="action-btn w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg text-lg transition">Play Again</button>
         </div>
     </div>
 
     <script>
         // --- DOM Elements ---
         const startScreen = document.getElementById('start-screen');
+        const coolTitle = document.getElementById('cool-title');
         const twoPlayerBtn = document.getElementById('two-player-btn');
         const vsComputerBtn = document.getElementById('vs-computer-btn');
         const gridRowsSelector = document.getElementById('grid-rows-selector');
         const gridColsSelector = document.getElementById('grid-cols-selector');
         const gameContainer = document.getElementById('game-container');
         const board = document.getElementById('board');
+        const boardContainer = document.getElementById('board-container');
         const score1El = document.getElementById('score1');
         const score2El = document.getElementById('score2');
-        const player2Avatar = document.getElementById('player2-avatar');
+        const player2Emoji = document.getElementById('player2-emoji');
         const turnIndicator = document.getElementById('turn-indicator');
         const currentPlayerEl = document.getElementById('current-player');
         const infoMessage = document.getElementById('info-message');
         const claimBtn = document.getElementById('claim-btn');
         const passBtn = document.getElementById('pass-btn');
         const cancelClaimBtn = document.getElementById('cancel-claim-btn');
+        const undoBtn = document.getElementById('undo-btn');
         const resetBtn = document.getElementById('reset-btn');
         const modal = document.getElementById('modal');
         const modalTitle = document.getElementById('modal-title');
         const modalMessage = document.getElementById('modal-message');
         const playAgainBtn = document.getElementById('play-again-btn');
-        const dynamicStyles = document.getElementById('dynamic-styles');
 
         // --- Game State ---
         let GRID_ROWS = 8;
@@ -197,16 +261,37 @@
         let currentPhase = 'PLACE_MARK';
         let selectedForClaim = [];
         let lastChanceTurnsTaken = 0;
+        let moveHistory = [];
+
+        // --- Sound Effects ---
+        let soundsReady = false;
+        const placeSound = new Tone.Synth({ oscillator: { type: 'sine' }, envelope: { attack: 0.005, decay: 0.1, sustain: 0.3, release: 0.1 } }).toDestination();
+        const claimSound = new Tone.PolySynth(Tone.Synth, { oscillator: { type: 'fmsine' }, envelope: { attack: 0.05, decay: 0.2, sustain: 0.2, release: 0.1 } }).toDestination();
+        const winSound = new Tone.PolySynth(Tone.Synth, { oscillator: { type: 'triangle8' } }).toDestination();
+        const clickSound = new Tone.MembraneSynth().toDestination();
 
         // --- Game Setup ---
+        function animateTitle() {
+            const titleText = "CORNERS";
+            coolTitle.innerHTML = '';
+            titleText.split('').forEach((char, index) => {
+                const span = document.createElement('span');
+                span.textContent = char;
+                span.className = 'start-title-char';
+                span.style.animationDelay = `${index * 0.1}s`;
+                coolTitle.appendChild(span);
+            });
+        }
+
         function setupStartScreen() {
+            animateTitle();
             const createButtons = (selector, type) => {
                 selector.innerHTML = '';
                 for (let i = 6; i <= 10; i++) {
                     const button = document.createElement('button');
                     button.textContent = i;
                     button.dataset.size = i;
-                    button.classList.add('grid-size-btn', 'px-4', 'py-2', 'rounded-md', 'border', 'border-gray-600', 'bg-gray-700', 'hover:bg-gray-600', 'transition');
+                    button.classList.add('grid-size-btn', 'px-4', 'py-2', 'rounded-md', 'border', 'border-gray-300', 'bg-white', 'hover:bg-gray-100', 'text-gray-800', 'transition');
                     if ((type === 'rows' && i === GRID_ROWS) || (type === 'cols' && i === GRID_COLS)) {
                         button.classList.add('active');
                     }
@@ -226,11 +311,11 @@
             currentPhase = 'PLACE_MARK';
             selectedForClaim = [];
             lastChanceTurnsTaken = 0;
+            moveHistory = [];
 
             board.innerHTML = '';
             modal.classList.add('hidden');
             
-            dynamicStyles.innerHTML = `.cell { width: ${100/GRID_COLS}%; padding-bottom: ${100/GRID_COLS}%; }`;
             board.style.gridTemplateColumns = `repeat(${GRID_COLS}, 1fr)`;
 
             for (let i = 0; i < GRID_ROWS * GRID_COLS; i++) {
@@ -248,10 +333,62 @@
             }
             updateUI();
         }
+        
+        function playClickSound() {
+            if (soundsReady) clickSound.triggerAttackRelease("C2", "8n");
+        }
+        
+        function drawClaimLines(corners) {
+            const cellWidth = board.offsetWidth / GRID_COLS;
+            const cellHeight = board.offsetHeight / GRID_ROWS;
+
+            const points = corners.map(index => ({
+                x: (index % GRID_COLS + 0.5) * cellWidth,
+                y: (Math.floor(index / GRID_COLS) + 0.5) * cellHeight
+            }));
+
+            const center = {
+                x: points.reduce((sum, p) => sum + p.x, 0) / 4,
+                y: points.reduce((sum, p) => sum + p.y, 0) / 4
+            };
+            points.sort((a, b) => Math.atan2(a.y - center.y, a.x - center.x) - Math.atan2(b.y - center.y, b.x - center.x));
+
+            for (let i = 0; i < 4; i++) {
+                const p1 = points[i];
+                const p2 = points[(i + 1) % 4];
+
+                const dx = p2.x - p1.x;
+                const dy = p2.y - p1.y;
+                const length = Math.sqrt(dx * dx + dy * dy);
+                const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+
+                const line = document.createElement('div');
+                line.className = 'claim-line';
+                line.style.left = `${p1.x}px`;
+                line.style.top = `${p1.y}px`;
+                line.style.transform = `rotate(${angle}deg)`;
+                
+                boardContainer.appendChild(line);
+
+                setTimeout(() => {
+                    line.style.width = `${length}px`;
+                }, 50 + i * 100);
+
+                setTimeout(() => line.remove(), 1500);
+            }
+        }
 
         // --- Event Listeners ---
+        document.body.addEventListener('click', async () => {
+            if (!soundsReady) {
+                await Tone.start();
+                soundsReady = true;
+            }
+        }, { once: true });
+
         gridRowsSelector.addEventListener('click', (e) => {
             if (e.target.classList.contains('grid-size-btn')) {
+                playClickSound();
                 GRID_ROWS = parseInt(e.target.dataset.size);
                 gridRowsSelector.querySelectorAll('.grid-size-btn').forEach(btn => btn.classList.remove('active'));
                 e.target.classList.add('active');
@@ -259,32 +396,25 @@
         });
         gridColsSelector.addEventListener('click', (e) => {
             if (e.target.classList.contains('grid-size-btn')) {
+                playClickSound();
                 GRID_COLS = parseInt(e.target.dataset.size);
                 gridColsSelector.querySelectorAll('.grid-size-btn').forEach(btn => btn.classList.remove('active'));
                 e.target.classList.add('active');
             }
         });
 
-        twoPlayerBtn.addEventListener('click', () => startGame('2p'));
-        vsComputerBtn.addEventListener('click', () => startGame('cpu'));
-
-        resetBtn.addEventListener('click', () => {
-            startScreen.style.display = 'block';
-            gameContainer.classList.add('hidden');
-        });
-        playAgainBtn.addEventListener('click', () => {
-             modal.classList.add('hidden');
-             startScreen.style.display = 'block';
-             gameContainer.classList.add('hidden');
-        });
-        claimBtn.addEventListener('click', handleClaimAction);
-        passBtn.addEventListener('click', handlePassAction);
-        cancelClaimBtn.addEventListener('click', handleCancelClaimAction);
+        twoPlayerBtn.addEventListener('click', () => { playClickSound(); startGame('2p'); });
+        vsComputerBtn.addEventListener('click', () => { playClickSound(); startGame('cpu'); });
+        resetBtn.addEventListener('click', () => { playClickSound(); startScreen.style.display = 'block'; gameContainer.classList.add('hidden'); });
+        playAgainBtn.addEventListener('click', () => { playClickSound(); modal.classList.add('hidden'); startScreen.style.display = 'block'; gameContainer.classList.add('hidden'); });
+        claimBtn.addEventListener('click', () => { playClickSound(); handleClaimAction(); });
+        passBtn.addEventListener('click', () => { playClickSound(); handlePassAction(); });
+        cancelClaimBtn.addEventListener('click', () => { playClickSound(); handleCancelClaimAction(); });
+        undoBtn.addEventListener('click', () => { playClickSound(); handleUndo(); });
 
         function startGame(mode) {
             gameMode = mode;
-            const player2AvatarSrc = (mode === 'cpu') ? 'https://api.dicebear.com/8.x/bottts/svg?seed=computer&backgroundColor=f4b6b6&mouth=smile01,smile02&sides=antenna01,antenna02&top=antenna,antennaCrooked' : 'https://api.dicebear.com/8.x/bottts/svg?seed=player2&backgroundColor=f4b6b6';
-            player2Avatar.src = player2AvatarSrc;
+            player2Emoji.textContent = (mode === 'cpu') ? '🤖' : '🔴';
             
             startScreen.style.display = 'none';
             gameContainer.classList.remove('hidden');
@@ -303,14 +433,16 @@
             score1El.textContent = scores[1];
             score2El.textContent = scores[2];
 
-            const playerName = currentPlayer === 1 ? 'Player 1' : (gameMode === 'cpu' ? 'Computer' : 'Player 2');
+            const playerName = currentPlayer === 1 ? 'Blue' : 'Red';
             currentPlayerEl.textContent = playerName;
-            turnIndicator.classList.toggle('bg-blue-500', currentPlayer === 1);
-            turnIndicator.classList.toggle('bg-red-500', currentPlayer === 2);
+            turnIndicator.classList.toggle('bg-blue-600', currentPlayer === 1);
+            turnIndicator.classList.toggle('bg-red-600', currentPlayer === 2);
+            turnIndicator.classList.add('text-white');
 
             claimBtn.classList.add('hidden');
             cancelClaimBtn.classList.add('hidden');
             passBtn.classList.add('hidden');
+            undoBtn.classList.add('hidden');
 
             if (currentPhase === 'SELECTING_CORNERS') {
                 infoMessage.innerHTML = `Select 4 of your dots. <br/> <span class="font-bold text-lg">${selectedForClaim.length} / 4 selected</span>`;
@@ -324,6 +456,9 @@
             } else { // PLACE_MARK
                 claimBtn.classList.remove('hidden');
                 infoMessage.textContent = 'Place a new mark or claim a square.';
+                if (moveHistory.length > 0 && (gameMode === '2p' || (gameMode === 'cpu' && currentPlayer === 1))) {
+                    undoBtn.classList.remove('hidden');
+                }
             }
         }
         
@@ -338,6 +473,13 @@
             }
 
             if (boardState[index] !== 0) return;
+            
+            moveHistory.push({
+                boardState: [...boardState],
+                claimedSquares: JSON.parse(JSON.stringify(claimedSquares)),
+                currentPlayer
+            });
+
             placeMark(index);
             
             if (currentPhase !== 'MUST_PLACE_BONUS_MARK') {
@@ -377,6 +519,33 @@
             updateUI();
         }
 
+        function handleUndo() {
+            if (moveHistory.length === 0) return;
+            const lastState = moveHistory.pop();
+            boardState = lastState.boardState;
+            claimedSquares = lastState.claimedSquares;
+            currentPlayer = lastState.currentPlayer;
+            
+            for(let i=0; i<boardState.length; i++) {
+                const dot = board.querySelector(`[data-index='${i}'] .dot`);
+                dot.className = 'dot';
+                if (boardState[i] !== 0) {
+                    dot.classList.add(`player${boardState[i]}-outline`, 'placed');
+                }
+            }
+            claimedSquares.forEach(sq => {
+                const owner = boardState[sq.corners[0]];
+                sq.corners.forEach(c => {
+                    const dot = board.querySelector(`[data-index='${c}'] .dot`);
+                    dot.classList.remove(`player${owner}-outline`);
+                    dot.classList.add(`player${owner}-filled`);
+                });
+            });
+
+            currentPhase = 'PLACE_MARK';
+            updateUI();
+        }
+
         function handleSelection(index) {
             if (boardState[index] !== currentPlayer || selectedForClaim.includes(index)) return;
             selectedForClaim.push(index);
@@ -393,6 +562,11 @@
             const isAlreadyClaimed = claimedSquares.some(sq => sq.id === squareId);
 
             if (isAValidSquare && !isAlreadyClaimed) {
+                moveHistory.push({
+                    boardState: [...boardState],
+                    claimedSquares: JSON.parse(JSON.stringify(claimedSquares)),
+                    currentPlayer
+                });
                 executeClaim(sortedIndices, squareId);
             } else {
                 infoMessage.textContent = 'Invalid square or already claimed.';
@@ -407,38 +581,13 @@
         }
 
         function executeClaim(corners, squareId) {
+            if (soundsReady) claimSound.triggerAttackRelease(['C4', 'E4', 'G4', 'C5'], '8n');
+            drawClaimLines(corners);
             claimedSquares.push({ id: squareId, corners: corners });
             corners.forEach(index => {
                 const dot = board.querySelector(`[data-index='${index}'] .dot`);
                 dot.classList.remove(`player${currentPlayer}-outline`, 'selected-for-claim');
                 dot.classList.add(`player${currentPlayer}-filled`);
-                // --- Success Animation: Star Burst ---
-                const cell = board.querySelector(`[data-index='${index}']`);
-                let burst = document.createElement('div');
-                burst.className = 'star-burst';
-                burst.style.pointerEvents = 'none';
-                burst.innerHTML = `
-                    <svg width="100%" height="100%" viewBox="0 0 100 100">
-                        <g>
-                            <circle cx="50" cy="50" r="18" fill="none" stroke="#f6e05e" stroke-width="6" opacity="0.7"/>
-                            <g>
-                                <line x1="50" y1="10" x2="50" y2="30" stroke="#f6e05e" stroke-width="4"/>
-                                <line x1="50" y1="70" x2="50" y2="90" stroke="#f6e05e" stroke-width="4"/>
-                                <line x1="10" y1="50" x2="30" y2="50" stroke="#f6e05e" stroke-width="4"/>
-                                <line x1="70" y1="50" x2="90" y2="50" stroke="#f6e05e" stroke-width="4"/>
-                                <line x1="25" y1="25" x2="38" y2="38" stroke="#f6e05e" stroke-width="3"/>
-                                <line x1="75" y1="25" x2="62" y2="38" stroke="#f6e05e" stroke-width="3"/>
-                                <line x1="25" y1="75" x2="38" y2="62" stroke="#f6e05e" stroke-width="3"/>
-                                <line x1="75" y1="75" x2="62" y2="62" stroke="#f6e05e" stroke-width="3"/>
-                            </g>
-                        </g>
-                    </svg>
-                `;
-                cell.appendChild(burst);
-                setTimeout(() => {
-                    burst.style.opacity = 0;
-                    burst.remove();
-                }, 800);
             });
             selectedForClaim = [];
 
@@ -460,6 +609,7 @@
         }
 
         function placeMark(index) {
+            if (soundsReady) placeSound.triggerAttackRelease("C5", "8n");
             boardState[index] = currentPlayer;
             drawDot(index, currentPlayer);
         }
@@ -487,11 +637,9 @@
             }
         }
 
-        // --- UPDATED AI LOGIC ---
         function computerTurn() {
             if (gameOver) return;
 
-            // Handle Last Chance round
             if (currentPhase === 'LAST_CHANCE') {
                 const winningMove = findUnclaimedSquareForAI();
                 if (winningMove) {
@@ -502,49 +650,41 @@
                 return;
             }
             
-            // Priority 1: Claim an existing square
             const claimableSquare = findUnclaimedSquareForAI();
             if (claimableSquare) {
                 executeClaim(claimableSquare.corners, claimableSquare.id);
-                setTimeout(() => { // Bonus move logic
+                setTimeout(() => {
                     placeSmartComputerMark();
                     switchTurn();
                 }, 800);
                 return;
             }
 
-            // Priority 2 & 3: Make a strategic mark
             placeSmartComputerMark();
             switchTurn();
         }
         
         function placeSmartComputerMark() {
-            // Priority 2: Find a winning move to complete a square
-            const winningMove = findPotentialSquare(2); // AI is player 2
+            const winningMove = findPotentialSquare(2);
             if (winningMove !== null) {
                 placeMark(winningMove);
                 return;
             }
             
-            // Priority 3: Block opponent's winning move
-            const blockingMove = findPotentialSquare(1); // Player is player 1
+            const blockingMove = findPotentialSquare(1);
             if (blockingMove !== null) {
                 placeMark(blockingMove);
                 return;
             }
 
-            // Priority 4: Place a random mark
             placeRandomComputerMark();
         }
 
         function findPotentialSquare(player) {
             const playerPoints = [];
-            const emptyCells = [];
             for (let i = 0; i < boardState.length; i++) {
                 if (boardState[i] === player) {
                     playerPoints.push({ x: i % GRID_COLS, y: Math.floor(i / GRID_COLS) });
-                } else if (boardState[i] === 0) {
-                    emptyCells.push(i);
                 }
             }
             if (playerPoints.length < 3) return null;
@@ -557,9 +697,7 @@
                         const p3 = playerPoints[k];
                         const points = [p1, p2, p3];
                         
-                        // Check all 3 possible fourth corners
                         for(let m = 0; m < 3; m++) {
-                            // Let points[m] be the corner with the right angle
                             const pA = points[m];
                             const pB = points[(m+1)%3];
                             const pC = points[(m+2)%3];
@@ -671,18 +809,18 @@
         function endGame() {
             if(gameOver) return;
             gameOver = true;
-            updateUI();
+            if(soundsReady) winSound.triggerAttackRelease(['C4', 'E4', 'G4', 'C5'], '0.5s');
             let message = '';
             if (scores[1] > scores[2]) {
-                message = 'Player 1 Wins!';
+                message = '🏆 Blue Wins! �';
             } else if (scores[2] > scores[1]) {
-                message = (gameMode === 'cpu' ? 'Computer' : 'Player 2') + ' Wins!';
+                message = `🏆 ${(gameMode === 'cpu' ? 'Computer' : 'Red')} Wins! 🏆`;
             } else {
-                message = "It's a Draw!";
+                message = "It's a Draw! 🤝";
             }
             
             modalTitle.textContent = 'Game Over!';
-            modalMessage.textContent = message;
+            modalMessage.innerHTML = message;
             modal.classList.remove('hidden');
         }
 
@@ -691,3 +829,4 @@
     </script>
 </body>
 </html>
+�
