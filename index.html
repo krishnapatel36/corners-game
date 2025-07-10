@@ -335,15 +335,15 @@
         
         function setupEmojiBackground() {
             emojiBgContainer.innerHTML = '';
-            const emojis = ['🔵', '🔴', '✨', '🏆', '🤔', '✅'];
+            const emojis = ['🟦', '🟨', '🟩', '🟪'];
             for (let i = 0; i < 15; i++) {
                 const emoji = document.createElement('span');
                 emoji.textContent = emojis[Math.floor(Math.random() * emojis.length)];
                 emoji.className = 'floating-emoji';
                 emoji.style.left = `${Math.random() * 100}vw`;
                 emoji.style.top = `${Math.random() * 100}vh`;
-                emoji.style.fontSize = `${Math.random() * 1.5 + 1}rem`;
-                emoji.style.animationDuration = `${Math.random() * 10 + 10}s`;
+                emoji.style.fontSize = `${Math.random() * 3 + 2}rem`;
+                emoji.style.animationDuration = `${Math.random()+ 5}s`;
                 emoji.style.animationDelay = `${Math.random() * 10}s`;
                 emojiBgContainer.appendChild(emoji);
             }
