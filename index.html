@@ -26,7 +26,7 @@
         }
         
         .cell:hover { background-color: #f9d48b; }
-        
+
         .dot-container {
             position: absolute;
             top: 0; left: 0; right: 0; bottom: 0;
@@ -124,11 +124,11 @@
             display: flex;
         }
 
-        #two-player-btn{
+        #play-again-btn{
             background-color: #0A93D1;
         }
 
-        #vs-computer-btn{
+        #vs-computer-btn,#two-player-btn,#cancel-claim-btn{
             background-color: #F4A52D;
         }
 
@@ -163,7 +163,7 @@
             <div class="space-y-4 mt-8 max-w-sm mx-auto">
                 <button id="two-player-btn" class="action-btn start-button w-full text-white font-bold py-3 px-6 rounded-lg text-lg transition transform hover:scale-105">2 Player Mode</button>
                 <button id="vs-computer-btn" class="action-btn start-button w-full text-white font-bold py-3 px-6 rounded-lg text-lg transition transform hover:scale-105">VS Computer</button>
-                <button id="rules-btn" class="action-btn w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-6 rounded-lg text-lg transition transform hover:scale-105 mt-2">🤔 How to Play</button>
+                <button id="rules-btn" class="action-btn w-full bg-gray-600 text-white font-bold py-3 px-6 rounded-lg text-lg transition transform hover:scale-105 mt-2">🤔 How to Play</button>
             </div>
         </div>
 
@@ -194,12 +194,12 @@
                     </div>
                      <div id="action-buttons" class="space-y-3">
                         <button id="claim-btn" class="action-btn w-full text-white font-bold py-3 px-5 rounded-lg transition transform hover:scale-105 hidden">✅ Claim Square</button>
-                        <button id="pass-btn" class="action-btn w-full bg-yellow-500 hover:bg-yellow-600 text-black font-bold py-3 px-5 rounded-lg transition transform hover:scale-105 hidden">⏩ Pass Turn</button>
-                        <button id="cancel-claim-btn" class="action-btn w-full bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-5 rounded-lg transition transform hover:scale-105 hidden">❌ Cancel Claim</button>
-                        <button id="undo-btn" class="action-btn w-full bg-gray-400 hover:bg-gray-500 text-white font-bold py-3 px-5 rounded-lg transition transform hover:scale-105 hidden">↩️ Undo Move</button>
+                        <button id="pass-btn" class="action-btn w-full bg-yellow-500 text-black font-bold py-3 px-5 rounded-lg transition transform hover:scale-105 hidden">⏩ Pass Turn</button>
+                        <button id="cancel-claim-btn" class="action-btn w-full text-white font-bold py-3 px-5 rounded-lg transition transform hover:scale-105 hidden">❌ Cancel Claim</button>
+                        <button id="undo-btn" class="action-btn w-full bg-gray-400 text-white font-bold py-3 px-5 rounded-lg transition transform hover:scale-105 hidden">↩️ Undo Move</button>
                     </div>
                     <div class="flex-grow"></div>
-                    <button id="reset-btn" class="action-btn mt-4 w-full bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-5 rounded-lg transition">New Game</button>
+                    <button id="reset-btn" class="action-btn mt-4 w-full bg-gray-500 text-white font-bold py-3 px-5 rounded-lg transition">New Game</button>
                 </div>
             </div>
         </div>
@@ -209,7 +209,7 @@
         <div class="bg-white text-gray-800 p-8 rounded-lg shadow-xl text-center max-w-sm w-full border-2 border-gray-300 relative">
             <h2 id="modal-title" class="text-4xl font-bold mb-4">Game Over!</h2>
             <p id="modal-message" class="text-xl mb-6"></p>
-            <button id="play-again-btn" class="action-btn w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg text-lg transition">Play Again</button>
+            <button id="play-again-btn" class="action-btn w-full text-white font-bold py-3 px-6 rounded-lg text-lg transition">Play Again</button>
         </div>
     </div>
     
@@ -219,9 +219,9 @@
             <div id="slides-container" class="flex-grow overflow-hidden relative">
                 </div>
             <div class="flex justify-between items-center mt-4">
-                <button id="prev-slide-btn" class="action-btn bg-gray-300 hover:bg-gray-400 font-bold py-2 px-4 rounded-lg">⬅️ Previous</button>
+                <button id="prev-slide-btn" class="action-btn bg-gray-300 font-bold py-2 px-4 rounded-lg">⬅️ Previous</button>
                 <div id="slide-dots" class="flex gap-2"></div>
-                <button id="next-slide-btn" class="action-btn bg-gray-300 hover:bg-gray-400 font-bold py-2 px-4 rounded-lg">Next ➡️</button>
+                <button id="next-slide-btn" class="action-btn bg-gray-300 font-bold py-2 px-4 rounded-lg">Next ➡️</button>
             </div>
         </div>
     </div>
@@ -449,8 +449,9 @@
 
         function startGame(mode) {
             gameMode = mode;
-            player2Emoji.textContent = (mode === 'cpu') ? '🤖' : '🔴';
-            
+            player2Emoji.innerHTML = (mode === 'cpu') 
+                ? `<img src="robinder.png" alt="Robot" style="margin-top:-5px; width: 64px; height: 50px; display: inline-block;" />`
+                : `🔴`;
             startScreen.classList.add('hidden');
             gameContainer.classList.remove('hidden');
             initializeGame();
@@ -486,7 +487,7 @@
                 infoMessage.innerHTML = `Select 4 of your dots. <br/> <span class="font-bold text-lg">${selectedForClaim.length} / 4 selected</span>`;
                 cancelClaimBtn.classList.remove('hidden');
             } else if (currentPhase === 'MUST_PLACE_BONUS_MARK') {
-                infoMessage.textContent = 'Claim successful! Place your bonus mark.';
+                infoMessage.textContent = 'Claim successful! Place your mark.';
             } else if (currentPhase === 'LAST_CHANCE') {
                 infoMessage.textContent = `${playerName}: Last Chance! Claim a square or pass.`;
                 claimBtn.classList.remove('hidden');
