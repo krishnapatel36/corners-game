@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!-- <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -970,6 +970,1067 @@
                                 x.className = 'text-6xl absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2';
                                 demoBoard.appendChild(x);
                             }, 1500)
+                       }, 6000);
+                    };
+                    sequence();
+                    demoInterval = setInterval(sequence, 9000);
+                },
+                () => { // Slide 3
+                    const squareCorners = [6, 8, 16, 18];
+                    const sequence = () => {
+                       createDemoGrid(demoBoard);
+                       squareCorners.forEach(idx => placeDemoDot(demoBoard, idx, 1, 100));
+                       setTimeout(() => {
+                           drawClaimLines(squareCorners, demoBoard);
+                           squareCorners.forEach(idx => fillDemoDot(demoBoard, idx, 1, 0));
+                           placeDemoDot(demoBoard, 22, 1, 800);
+                       }, 1500);
+                    };
+                    sequence();
+                    demoInterval = setInterval(sequence, 4000);
+                },
+                () => { // Slide 4
+                    const sequence = () => {
+                        createDemoGrid(demoBoard);
+                        for(let i=0; i<25; i++) {
+                            if (i !== 12) placeDemoDot(demoBoard, i, (i%3 === 0) ? 1: 2, 100);
+                        }
+                    };
+                    sequence();
+                    demoInterval = setInterval(sequence, 4000);
+                }
+            ];
+            
+            animations[slideIndex]();
+        }
+
+        function showSlide(index) {
+            slides.forEach((slide, i) => {
+                slide.classList.toggle('active', i === index);
+            });
+            slideDotsContainer.innerHTML = '';
+            for (let i = 0; i < slides.length; i++) {
+                const dot = document.createElement('div');
+                dot.className = `w-3 h-3 rounded-full transition-colors ${i === index ? 'bg-gray-800' : 'bg-gray-300'}`;
+                slideDotsContainer.appendChild(dot);
+            }
+            prevSlideBtn.disabled = index === 0;
+            nextSlideBtn.disabled = index === slides.length - 1;
+            prevSlideBtn.classList.toggle('opacity-50', index === 0);
+            nextSlideBtn.classList.toggle('opacity-50', index === slides.length - 1);
+            
+            runDemoAnimation(index);
+        }
+
+        function changeSlide(direction) {
+            currentSlide = (currentSlide + direction + slides.length) % slides.length;
+            showSlide(currentSlide);
+        }
+
+        function openRules() {
+            rulesModal.classList.remove('hidden');
+            setupSlides();
+            currentSlide = 0;
+            showSlide(0);
+        }
+
+        function closeRules() {
+            rulesModal.classList.add('hidden');
+            clearInterval(demoInterval);
+        }
+
+        document.addEventListener('DOMContentLoaded', setupStartScreen);
+
+    </script>
+</body>
+</html> -->
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Corners Game</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Nunito', sans-serif;
+            touch-action: manipulation;
+            background-color: #fefbe3; /* User requested color for the entire page */
+            overflow-x: hidden;
+        }
+
+        .cell {
+            aspect-ratio: 1 / 1;
+            position: relative;
+            cursor: pointer;
+            border: 1px solid #e74c3c;
+            transition: background-color 0.2s;
+        }
+        
+        .cell:hover { background-color: #f9d48b; }
+
+        .dot-container {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .dot {
+            width: 60%;
+            height: 60%;
+            border-radius: 50%;
+            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            background-color: transparent;
+            box-sizing: border-box;
+            transform: scale(0);
+        }
+        
+        .dot.placed {
+             transform: scale(1);
+        }
+
+        .dot.player1-outline { border: 5px solid #0A93D1; }
+        .dot.player2-outline { border: 5px solid #ef4444; }
+
+        .dot.player1-filled { background-color: #0A93D1; border: none; }
+        .dot.player2-filled { background-color: #ef4444; border: none; }
+
+        .dot.selected-for-claim {
+            transform: scale(1.2) !important;
+            box-shadow: 0 0 20px #f6e05e;
+        }
+
+        .modal { transition: opacity 0.25s ease; }
+
+        .grid-size-btn.active {
+            background-color: #f39c12;
+            color: white;
+            border-color: #f39c12;
+            transform: scale(1.1);
+        }
+        
+        .action-btn {
+            transition: all 0.1s ease-in-out;
+        }
+        .action-btn:active {
+            transform: scale(0.95);
+        }
+
+        .claim-line {
+            position: absolute;
+            background-color: #4a3f35;
+            height: 4px;
+            transform-origin: 0 50%;
+            width: 0;
+            transition: width 0.3s ease-out;
+            border-radius: 2px;
+            z-index: 10;
+        }
+
+        .start-title-char {
+            display: inline-block;
+            opacity: 0;
+            transform: translateY(-50px) rotate(10deg);
+            animation: drop-in 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+        @keyframes drop-in {
+            to {
+                opacity: 1;
+                transform: translateY(0) rotate(0deg);
+            }
+        }
+        
+        @keyframes pulse-glow-blue {
+            0%, 100% { box-shadow: 0 0 15px 0px rgba(59, 130, 246, 0); }
+            50% { box-shadow: 0 0 25px 8px rgba(59, 130, 246, 0.4); }
+        }
+        @keyframes pulse-glow-red {
+            0%, 100% { box-shadow: 0 0 15px 0px rgba(239, 68, 68, 0); }
+            50% { box-shadow: 0 0 25px 8px rgba(239, 68, 68, 0.4); }
+        }
+        .start-button-blue {
+            animation: pulse-glow-blue 2s infinite ease-in-out;
+            animation-delay: 0.5s;
+        }
+        .start-button-red {
+            animation: pulse-glow-red 2s infinite ease-in-out;
+            animation-delay: 1s;
+        }
+
+        /* Rules Modal Styling */
+        #rules-modal .slide {
+            display: none;
+        }
+        #rules-modal .slide.active {
+            display: flex;
+        }
+
+        #play-again-btn{
+            background-color: #0A93D1;
+        }
+
+        #vs-computer-btn,#two-player-btn,#cancel-claim-btn{
+            background-color: #F4A52D;
+        }
+
+        #claim-btn{
+            background-color: #8BC75B;
+        }
+
+    </style>
+</head>
+<body>
+    <button id="mute-btn" class="fixed top-4 right-4 text-3xl z-50 p-2 rounded-full bg-white bg-opacity-30 hover:bg-opacity-75 transition-all duration-200 action-btn">🔊</button>
+
+    <main class="w-full min-h-screen flex items-center justify-center p-4">
+        <div id="start-screen" class="w-full max-w-md text-center">
+            <div>
+                <h1 id="cool-title" class="text-5xl sm:text-6xl font-black text-gray-800 mb-8 tracking-wider"></h1>
+            </div>
+            
+            <div class="flex justify-center mb-4">
+                <div>
+                    <label class="text-xl font-bold mb-3 block text-gray-700">Rows</label>
+                    <div id="grid-rows-selector" class="flex justify-center gap-2 flex-wrap"></div>
+                </div>
+            </div>
+            <div class="flex justify-center mb-6">
+                <div>
+                    <label class="text-xl font-bold mb-3 block text-gray-700">Columns</label>
+                    <div id="grid-cols-selector" class="flex justify-center gap-2 flex-wrap"></div>
+                </div>
+            </div>
+
+            <div class="space-y-4 mt-8 max-w-sm mx-auto">
+                <button id="two-player-btn" class="action-btn start-button w-full text-white font-bold py-3 px-6 rounded-lg text-lg transition transform hover:scale-105">2 Player Mode</button>
+                <button id="vs-computer-btn" class="action-btn start-button w-full text-white font-bold py-3 px-6 rounded-lg text-lg transition transform hover:scale-105">VS Computer</button>
+                <button id="rules-btn" class="action-btn w-full bg-gray-600 text-white font-bold py-3 px-6 rounded-lg text-lg transition transform hover:scale-105 mt-2">🤔 How to Play</button>
+            </div>
+        </div>
+
+        <div id="game-container" class="hidden w-full max-w-6xl">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-8">
+                <div class="md:col-span-2 order-1 flex justify-center items-center">
+                    <div id="board-container" class="relative w-full max-w-full lg:max-w-[70vh]">
+                        <div id="board" class="grid bg-[#f7b731] rounded-lg shadow-md border border-[#e59f44]"></div>
+                    </div>
+                </div>
+                <div class="text-gray-800 p-2 sm:p-4 rounded-lg order-2 flex flex-col justify-center">
+                    <h1 class="text-4xl font-black mb-4 text-center tracking-wider">CORNERS</h1>
+                    <div class="flex justify-around items-center mb-4 text-center">
+                        <div>
+                            <span class="text-4xl">🔵</span>
+                            <p id="score1" class="text-4xl font-bold">0</p>
+                        </div>
+                        <div>
+                            <span id="player2-emoji" class="text-4xl">🔴</span>
+                            <p id="score2" class="text-4xl font-bold">0</p>
+                        </div>
+                    </div>
+                    <div id="turn-indicator" class="text-center text-lg font-bold p-3 rounded-lg mb-4 transition-colors duration-300">
+                        <span id="current-player"></span>'s Turn
+                    </div>
+                    <div id="game-state-info" class="text-center font-semibold p-3 rounded-lg bg-yellow-100 text-yellow-800 mb-4 h-24 flex items-center justify-center">
+                        <p id="info-message"></p>
+                    </div>
+                     <div id="action-buttons" class="space-y-3">
+                        <button id="claim-btn" class="action-btn w-full text-white font-bold py-3 px-5 rounded-lg transition transform hover:scale-105 hidden">✅ Claim Square</button>
+                        <button id="pass-btn" class="action-btn w-full bg-yellow-500 text-black font-bold py-3 px-5 rounded-lg transition transform hover:scale-105 hidden">⏩ Pass Turn</button>
+                        <button id="cancel-claim-btn" class="action-btn w-full text-white font-bold py-3 px-5 rounded-lg transition transform hover:scale-105 hidden">❌ Cancel Claim</button>
+                        <button id="undo-btn" class="action-btn w-full bg-gray-400 text-white font-bold py-3 px-5 rounded-lg transition transform hover:scale-105 hidden">↩️ Undo Move</button>
+                    </div>
+                    <div class="flex-grow"></div>
+                    <button id="reset-btn" class="action-btn mt-4 w-full bg-gray-500 text-white font-bold py-3 px-5 rounded-lg transition">New Game</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center hidden z-50">
+        <div class="bg-white text-gray-800 p-8 rounded-lg shadow-xl text-center max-w-sm w-full border-2 border-gray-300 relative">
+            <h2 id="modal-title" class="text-4xl font-bold mb-4">Game Over!</h2>
+            <p id="modal-message" class="text-xl mb-6"></p>
+            <button id="play-again-btn" class="action-btn w-full text-white font-bold py-3 px-6 rounded-lg text-lg transition">Play Again</button>
+        </div>
+    </div>
+    
+    <div id="rules-modal" class="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center hidden z-50 p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col p-6 relative">
+            <button id="close-rules-btn" class="absolute top-4 right-4 text-3xl font-bold text-gray-500 hover:text-black">&times;</button>
+            <div id="slides-container" class="flex-grow overflow-hidden relative">
+                </div>
+            <div class="flex justify-between items-center mt-4">
+                <button id="prev-slide-btn" class="action-btn bg-gray-300 font-bold py-2 px-4 rounded-lg">⬅️ Previous</button>
+                <div id="slide-dots" class="flex gap-2"></div>
+                <button id="next-slide-btn" class="action-btn bg-gray-300 font-bold py-2 px-4 rounded-lg">Next ➡️</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- DOM Elements ---
+        const startScreen = document.getElementById('start-screen');
+        const coolTitle = document.getElementById('cool-title');
+        const twoPlayerBtn = document.getElementById('two-player-btn');
+        const vsComputerBtn = document.getElementById('vs-computer-btn');
+        const rulesBtn = document.getElementById('rules-btn');
+        const gridRowsSelector = document.getElementById('grid-rows-selector');
+        const gridColsSelector = document.getElementById('grid-cols-selector');
+        const gameContainer = document.getElementById('game-container');
+        const board = document.getElementById('board');
+        const boardContainer = document.getElementById('board-container');
+        const score1El = document.getElementById('score1');
+        const score2El = document.getElementById('score2');
+        const player2Emoji = document.getElementById('player2-emoji');
+        const turnIndicator = document.getElementById('turn-indicator');
+        const currentPlayerEl = document.getElementById('current-player');
+        const infoMessage = document.getElementById('info-message');
+        const claimBtn = document.getElementById('claim-btn');
+        const passBtn = document.getElementById('pass-btn');
+        const cancelClaimBtn = document.getElementById('cancel-claim-btn');
+        const undoBtn = document.getElementById('undo-btn');
+        const resetBtn = document.getElementById('reset-btn');
+        const modal = document.getElementById('modal');
+        const modalTitle = document.getElementById('modal-title');
+        const modalMessage = document.getElementById('modal-message');
+        const playAgainBtn = document.getElementById('play-again-btn');
+        const rulesModal = document.getElementById('rules-modal');
+        const closeRulesBtn = document.getElementById('close-rules-btn');
+        const prevSlideBtn = document.getElementById('prev-slide-btn');
+        const nextSlideBtn = document.getElementById('next-slide-btn');
+        const slidesContainer = document.getElementById('slides-container');
+        const slideDotsContainer = document.getElementById('slide-dots');
+        const muteBtn = document.getElementById('mute-btn');
+
+        // --- Game State ---
+        let GRID_ROWS = 8;
+        let GRID_COLS = 8;
+        let boardState = [];
+        let claimedSquares = [];
+        let currentPlayer = 1;
+        let gameMode = '2p';
+        let gameOver = false;
+        let currentPhase = 'PLACE_MARK';
+        let selectedForClaim = [];
+        let lastChanceTurnsTaken = 0;
+        let moveHistory = [];
+        let currentSlide = 0;
+        let slides = [];
+        let isMuted = false;
+
+        // --- Sound Effects ---
+        let soundsReady = false;
+        const placeSound = new Tone.Synth({ oscillator: { type: 'sine' }, envelope: { attack: 0.005, decay: 0.1, sustain: 0.3, release: 0.1 } }).toDestination();
+        const claimSound = new Tone.PolySynth(Tone.Synth, { oscillator: { type: 'fmsine' }, envelope: { attack: 0.05, decay: 0.2, sustain: 0.2, release: 0.1 } }).toDestination();
+        const winSound = new Tone.PolySynth(Tone.Synth, { oscillator: { type: 'triangle8' } }).toDestination();
+        const clickSound = new Tone.MembraneSynth().toDestination();
+
+        // --- Game Setup ---
+        function animateTitle() {
+            const titleText = "CORNERS";
+            coolTitle.innerHTML = '';
+            titleText.split('').forEach((char, index) => {
+                const span = document.createElement('span');
+                span.textContent = char;
+                span.className = 'start-title-char';
+                span.style.animationDelay = `${index * 0.1}s`;
+                coolTitle.appendChild(span);
+            });
+        }
+        
+        function setupStartScreen() {
+            animateTitle();
+            const createButtons = (selector, type) => {
+                selector.innerHTML = '';
+                for (let i = 6; i <= 10; i++) {
+                    const button = document.createElement('button');
+                    button.textContent = i;
+                    button.dataset.size = i;
+                    button.classList.add('grid-size-btn', 'px-4', 'py-2', 'rounded-md', 'border', 'border-gray-300', 'bg-white', 'hover:bg-gray-100', 'text-gray-800', 'transition');
+                    if ((type === 'rows' && i === GRID_ROWS) || (type === 'cols' && i === GRID_COLS)) {
+                        button.classList.add('active');
+                    }
+                    selector.appendChild(button);
+                }
+            };
+            createButtons(gridRowsSelector, 'rows');
+            createButtons(gridColsSelector, 'cols');
+        }
+
+        function initializeGame() {
+            boardState = Array(GRID_ROWS * GRID_COLS).fill(0);
+            claimedSquares = [];
+            currentPlayer = 1;
+            scores = { 1: 0, 2: 0 };
+            gameOver = false;
+            currentPhase = 'PLACE_MARK';
+            selectedForClaim = [];
+            lastChanceTurnsTaken = 0;
+            moveHistory = [];
+
+            board.innerHTML = '';
+            modal.classList.add('hidden');
+            
+            board.style.gridTemplateColumns = `repeat(${GRID_COLS}, 1fr)`;
+
+            for (let i = 0; i < GRID_ROWS * GRID_COLS; i++) {
+                const cell = document.createElement('div');
+                cell.classList.add('cell');
+                cell.dataset.index = i;
+                const dotContainer = document.createElement('div');
+                dotContainer.classList.add('dot-container');
+                const dot = document.createElement('div');
+                dot.classList.add('dot');
+                dotContainer.appendChild(dot);
+                cell.appendChild(dotContainer);
+                cell.addEventListener('click', handleCellClick);
+                board.appendChild(cell);
+            }
+            updateUI();
+        }
+        
+        function playClickSound() {
+            if (soundsReady) clickSound.triggerAttackRelease("C2", "8n");
+        }
+        
+        function drawClaimLines(corners, container) {
+            const demoGridCols = 5;
+            const isDemo = container.id.includes('demo');
+            const cols = isDemo ? demoGridCols : GRID_COLS;
+            const rows = isDemo ? demoGridCols : GRID_ROWS;
+
+            const cellWidth = container.offsetWidth / cols;
+            const cellHeight = container.offsetHeight / rows;
+
+            const points = corners.map(index => ({
+                x: (index % cols + 0.5) * cellWidth,
+                y: (Math.floor(index / cols) + 0.5) * cellHeight
+            }));
+
+            const center = {
+                x: points.reduce((sum, p) => sum + p.x, 0) / 4,
+                y: points.reduce((sum, p) => sum + p.y, 0) / 4
+            };
+            points.sort((a, b) => Math.atan2(a.y - center.y, a.x - center.x) - Math.atan2(b.y - center.y, b.x - center.x));
+
+            for (let i = 0; i < 4; i++) {
+                const p1 = points[i];
+                const p2 = points[(i + 1) % 4];
+
+                const dx = p2.x - p1.x;
+                const dy = p2.y - p1.y;
+                const length = Math.sqrt(dx * dx + dy * dy);
+                const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+
+                const line = document.createElement('div');
+                line.className = 'claim-line';
+                line.style.left = `${p1.x}px`;
+                line.style.top = `${p1.y}px`;
+                line.style.transform = `rotate(${angle}deg)`;
+                
+                container.appendChild(line);
+
+                setTimeout(() => {
+                    line.style.width = `${length}px`;
+                }, 50 + i * 100);
+
+                setTimeout(() => line.remove(), 1500);
+            }
+        }
+
+        // --- Event Listeners ---
+        document.body.addEventListener('click', async () => {
+            if (!soundsReady) {
+                await Tone.start();
+                soundsReady = true;
+                // Ensure mute state is applied after Tone starts
+                Tone.Master.mute = isMuted;
+            }
+        }, { once: true });
+        
+        function toggleMute() {
+            isMuted = !isMuted;
+            muteBtn.textContent = isMuted ? '🔇' : '🔊';
+            if (soundsReady) {
+                Tone.Master.mute = isMuted;
+            }
+        }
+        muteBtn.addEventListener('click', toggleMute);
+
+        gridRowsSelector.addEventListener('click', (e) => {
+            if (e.target.classList.contains('grid-size-btn')) {
+                playClickSound();
+                GRID_ROWS = parseInt(e.target.dataset.size);
+                gridRowsSelector.querySelectorAll('.grid-size-btn').forEach(btn => btn.classList.remove('active'));
+                e.target.classList.add('active');
+            }
+        });
+        gridColsSelector.addEventListener('click', (e) => {
+            if (e.target.classList.contains('grid-size-btn')) {
+                playClickSound();
+                GRID_COLS = parseInt(e.target.dataset.size);
+                gridColsSelector.querySelectorAll('.grid-size-btn').forEach(btn => btn.classList.remove('active'));
+                e.target.classList.add('active');
+            }
+        });
+
+        twoPlayerBtn.addEventListener('click', () => { playClickSound(); startGame('2p'); });
+        vsComputerBtn.addEventListener('click', () => { playClickSound(); startGame('cpu'); });
+        resetBtn.addEventListener('click', () => { playClickSound(); gameContainer.classList.add('hidden'); startScreen.classList.remove('hidden'); });
+        playAgainBtn.addEventListener('click', () => { playClickSound(); modal.classList.add('hidden'); gameContainer.classList.add('hidden'); startScreen.classList.remove('hidden'); });
+        claimBtn.addEventListener('click', () => { playClickSound(); handleClaimAction(); });
+        passBtn.addEventListener('click', () => { playClickSound(); handlePassAction(); });
+        cancelClaimBtn.addEventListener('click', () => { playClickSound(); handleCancelClaimAction(); });
+        undoBtn.addEventListener('click', () => { playClickSound(); handleUndo(); });
+        rulesBtn.addEventListener('click', () => { playClickSound(); openRules(); });
+        closeRulesBtn.addEventListener('click', () => { playClickSound(); closeRules(); });
+        prevSlideBtn.addEventListener('click', () => { playClickSound(); changeSlide(-1); });
+        nextSlideBtn.addEventListener('click', () => { playClickSound(); changeSlide(1); });
+
+
+        function startGame(mode) {
+            gameMode = mode;
+            player2Emoji.innerHTML = (mode === 'cpu') 
+                ? `<img src="robinder.png" alt="Robot" style="margin-top:-5px; width: 55px; height: 55px; display: inline-block;" />`
+                : `🔴`;
+            startScreen.classList.add('hidden');
+            gameContainer.classList.remove('hidden');
+            initializeGame();
+        }
+
+        // --- Main UI Update Function ---
+        function updateUI() {
+            let newScores = { 1: 0, 2: 0 };
+            const dots = board.querySelectorAll('.dot');
+            dots.forEach(dot => {
+                if (dot.classList.contains('player1-filled')) newScores[1]++;
+                else if (dot.classList.contains('player2-filled')) newScores[2]++;
+            });
+            scores = newScores;
+            score1El.textContent = scores[1];
+            score2El.textContent = scores[2];
+
+            const playerName = currentPlayer === 1 ? 'Blue' : 'Red';
+            currentPlayerEl.textContent = playerName;
+            if (currentPlayer === 1) {
+                turnIndicator.style.backgroundColor = '#0A93D1';
+            } else if (currentPlayer === 2) {
+                turnIndicator.style.backgroundColor = '#F05656';
+            }
+            turnIndicator.classList.add('text-white');
+
+            claimBtn.classList.add('hidden');
+            cancelClaimBtn.classList.add('hidden');
+            passBtn.classList.add('hidden');
+            undoBtn.classList.add('hidden');
+
+            if (currentPhase === 'SELECTING_CORNERS') {
+                infoMessage.innerHTML = `Select 4 of your dots. <br/> <span class="font-bold text-lg">${selectedForClaim.length} / 4 selected</span>`;
+                cancelClaimBtn.classList.remove('hidden');
+            } else if (currentPhase === 'MUST_PLACE_BONUS_MARK') {
+                infoMessage.textContent = 'Claim successful! Place your bonus mark.';
+            } else if (currentPhase === 'LAST_CHANCE') {
+                infoMessage.textContent = `${playerName}: Last Chance! Claim a square or pass.`;
+                claimBtn.classList.remove('hidden');
+                passBtn.classList.remove('hidden');
+            } else { // PLACE_MARK
+                claimBtn.classList.remove('hidden');
+                infoMessage.textContent = 'Claim a square or place a new mark.';
+                if (moveHistory.length > 0 && (gameMode === '2p' || (gameMode === 'cpu' && currentPlayer === 1))) {
+                    undoBtn.classList.remove('hidden');
+                }
+            }
+        }
+        
+        // --- Game Flow & Actions ---
+        function handleCellClick(event) {
+            if (gameOver || currentPhase === 'LAST_CHANCE') return;
+            const index = parseInt(event.currentTarget.dataset.index);
+
+            if (currentPhase === 'SELECTING_CORNERS') {
+                handleSelection(index);
+                return;
+            }
+
+            if (boardState[index] !== 0) return;
+            
+            moveHistory.push({
+                boardState: [...boardState],
+                claimedSquares: JSON.parse(JSON.stringify(claimedSquares)),
+                currentPlayer
+            });
+
+            placeMark(index);
+            
+            if (currentPhase === 'MUST_PLACE_BONUS_MARK') {
+                currentPhase = 'PLACE_MARK';
+                 switchTurn();
+            } else {
+                 switchTurn();
+            }
+        }
+        
+        function handleClaimAction() {
+            const playerDotsCount = boardState.filter(p => p === currentPlayer).length;
+            if (playerDotsCount < 4) {
+                infoMessage.textContent = "You need at least 4 dots to claim.";
+                setTimeout(() => updateUI(), 1500);
+                return;
+            }
+            currentPhase = 'SELECTING_CORNERS';
+            selectedForClaim = [];
+            updateUI();
+        }
+
+        function handlePassAction() {
+            if (currentPhase !== 'LAST_CHANCE') return;
+            lastChanceTurnsTaken++;
+            if (lastChanceTurnsTaken >= 2) {
+                endGame();
+            } else {
+                switchTurn(true);
+            }
+        }
+        
+        function handleCancelClaimAction() {
+            const boardIsFull = !boardState.includes(0);
+            currentPhase = boardIsFull ? 'LAST_CHANCE' : 'PLACE_MARK';
+            clearSelectionHighlights();
+            selectedForClaim = [];
+            updateUI();
+        }
+
+        function handleUndo() {
+            if (moveHistory.length === 0) return;
+            const lastState = moveHistory.pop();
+            boardState = lastState.boardState;
+            claimedSquares = lastState.claimedSquares;
+            currentPlayer = lastState.currentPlayer;
+            
+            for(let i=0; i<boardState.length; i++) {
+                const dot = board.querySelector(`[data-index='${i}'] .dot`);
+                dot.className = 'dot';
+                if (boardState[i] !== 0) {
+                    dot.classList.add(`player${boardState[i]}-outline`, 'placed');
+                }
+            }
+            claimedSquares.forEach(sq => {
+                const owner = boardState[sq.corners[0]];
+                sq.corners.forEach(c => {
+                    const dot = board.querySelector(`[data-index='${c}'] .dot`);
+                    dot.classList.remove(`player${owner}-outline`);
+                    dot.classList.add(`player${owner}-filled`);
+                });
+            });
+
+            currentPhase = 'PLACE_MARK';
+            updateUI();
+        }
+
+        function handleSelection(index) {
+            if (boardState[index] !== currentPlayer) return;
+
+            const dotEl = board.querySelector(`[data-index='${index}'] .dot`);
+            const selectedIndex = selectedForClaim.indexOf(index);
+
+            if (selectedIndex > -1) {
+                selectedForClaim.splice(selectedIndex, 1);
+                dotEl.classList.remove('selected-for-claim');
+            } else {
+                if (selectedForClaim.length < 4) {
+                    selectedForClaim.push(index);
+                    dotEl.classList.add('selected-for-claim');
+                }
+            }
+            
+            updateUI();
+
+            if (selectedForClaim.length === 4) {
+                 setTimeout(validateAndClaimSelection, 100);
+            }
+        }
+
+        function validateAndClaimSelection() {
+            const points = selectedForClaim.map(index => ({ x: index % GRID_COLS, y: Math.floor(index / GRID_COLS) }));
+            const isAValidSquare = isSquare(points);
+            const sortedIndices = [...selectedForClaim].sort((a, b) => a - b);
+            const squareId = sortedIndices.join('-');
+            const isAlreadyClaimed = claimedSquares.some(sq => sq.id === squareId);
+
+            if (isAValidSquare && !isAlreadyClaimed) {
+                moveHistory.push({
+                    boardState: [...boardState],
+                    claimedSquares: JSON.parse(JSON.stringify(claimedSquares)),
+                    currentPlayer
+                });
+                executeClaim(sortedIndices, squareId);
+            } else {
+                infoMessage.textContent = 'Invalid square or already claimed.';
+                const boardIsFull = !boardState.includes(0);
+                setTimeout(() => {
+                    clearSelectionHighlights();
+                    selectedForClaim = [];
+                    currentPhase = boardIsFull ? 'LAST_CHANCE' : 'PLACE_MARK';
+                    updateUI();
+                }, 1500);
+            }
+        }
+
+        function executeClaim(corners, squareId) {
+            if (soundsReady) claimSound.triggerAttackRelease(['C4', 'E4', 'G4', 'C5'], '8n');
+            drawClaimLines(corners, boardContainer);
+            claimedSquares.push({ id: squareId, corners: corners });
+            corners.forEach(index => {
+                const dot = board.querySelector(`[data-index='${index}'] .dot`);
+                dot.classList.remove(`player${currentPlayer}-outline`, 'selected-for-claim');
+                dot.classList.add(`player${currentPlayer}-filled`);
+            });
+            selectedForClaim = [];
+
+            const boardIsFull = !boardState.includes(0);
+
+            if (boardIsFull) {
+                lastChanceTurnsTaken++;
+                updateUI();
+                if (lastChanceTurnsTaken >= 2) {
+                    setTimeout(endGame, 100);
+                } else {
+                    currentPhase = 'LAST_CHANCE';
+                    switchTurn(true);
+                }
+            } else {
+                currentPhase = 'MUST_PLACE_BONUS_MARK';
+                updateUI();
+            }
+        }
+
+        function placeMark(index) {
+            if (soundsReady) placeSound.triggerAttackRelease("C5", "8n");
+            boardState[index] = currentPlayer;
+            drawDot(index, currentPlayer);
+        }
+
+        function switchTurn(isLastChanceSwitch = false) {
+            const boardIsFull = !boardState.includes(0);
+
+            if (boardIsFull && currentPhase !== 'LAST_CHANCE' && lastChanceTurnsTaken === 0) {
+                currentPhase = 'LAST_CHANCE';
+                updateUI();
+                if (gameMode === 'cpu' && currentPlayer === 1) { // It's P1's turn to start last chance
+                     currentPlayer = 2; // So switch to P2
+                }
+                if (gameMode === 'cpu' && currentPlayer === 2) setTimeout(computerTurn, 800);
+                return;
+            }
+            
+            currentPlayer = currentPlayer === 1 ? 2 : 1;
+            if (!isLastChanceSwitch && currentPhase !== 'MUST_PLACE_BONUS_MARK') {
+                 currentPhase = 'PLACE_MARK';
+            }
+            
+            if (gameOver) return;
+            updateUI();
+
+            if (gameMode === 'cpu' && currentPlayer === 2 && !gameOver) {
+                setTimeout(computerTurn, 800);
+            }
+        }
+
+
+        function computerTurn() {
+            if (gameOver) return;
+
+            if (currentPhase === 'LAST_CHANCE') {
+                const winningMove = findUnclaimedSquareForAI();
+                if (winningMove) {
+                    executeClaim(winningMove.corners, winningMove.id);
+                } else {
+                    handlePassAction();
+                }
+                return;
+            }
+            
+            const claimableSquare = findUnclaimedSquareForAI();
+            if (claimableSquare) {
+                executeClaim(claimableSquare.corners, claimableSquare.id);
+                // After claiming, AI gets a bonus move
+                setTimeout(() => {
+                    placeSmartComputerMark();
+                    currentPhase = 'PLACE_MARK'; // Reset phase after bonus
+                    switchTurn();
+                }, 1000);
+                return;
+            }
+
+            placeSmartComputerMark();
+            switchTurn();
+        }
+        
+        function placeSmartComputerMark() {
+            // Priority 1: Find a spot that completes a square for the AI.
+            const winningMove = findPotentialSquare(2);
+            if (winningMove !== null) {
+                placeMark(winningMove);
+                return;
+            }
+            
+            // Priority 2: Find a spot to block the player's potential square.
+            const blockingMove = findPotentialSquare(1);
+            if (blockingMove !== null) {
+                placeMark(blockingMove);
+                return;
+            }
+            
+            // Priority 3: Place a random mark.
+            placeRandomComputerMark();
+        }
+
+        function findPotentialSquare(player) {
+            const playerPoints = [];
+            for (let i = 0; i < boardState.length; i++) {
+                if (boardState[i] === player) {
+                    playerPoints.push({ x: i % GRID_COLS, y: Math.floor(i / GRID_COLS) });
+                }
+            }
+            if (playerPoints.length < 3) return null;
+
+            // Iterate through all combinations of 3 points
+            for (let i = 0; i < playerPoints.length; i++) {
+                for (let j = i + 1; j < playerPoints.length; j++) {
+                    for (let k = j + 1; k < playerPoints.length; k++) {
+                        const p1 = playerPoints[i];
+                        const p2 = playerPoints[j];
+                        const p3 = playerPoints[k];
+                        const points = [p1, p2, p3];
+                        
+                        // Check all 3 possible fourth points that could form a parallelogram
+                        const p4_1 = { x: p1.x + p3.x - p2.x, y: p1.y + p3.y - p2.y };
+                        const p4_2 = { x: p2.x + p1.x - p3.x, y: p2.y + p1.y - p3.y };
+                        const p4_3 = { x: p3.x + p2.x - p1.x, y: p3.y + p2.y - p1.y };
+
+                        for (const p4 of [p4_1, p4_2, p4_3]) {
+                            const potentialSquarePoints = [p1, p2, p3, p4];
+                            if(isSquare(potentialSquarePoints)) {
+                                const p4Index = p4.y * GRID_COLS + p4.x;
+                                // Check if the point is within bounds and the cell is empty
+                                if (p4.x >= 0 && p4.x < GRID_COLS && p4.y >= 0 && p4.y < GRID_ROWS && boardState[p4Index] === 0) {
+                                    return p4Index;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+
+        function findUnclaimedSquareForAI() {
+            const aiPoints = [];
+            for (let i = 0; i < boardState.length; i++) {
+                if (boardState[i] === 2) {
+                    aiPoints.push({ x: i % GRID_COLS, y: Math.floor(i / GRID_COLS) });
+                }
+            }
+            if (aiPoints.length < 4) return null;
+
+            for (let i = 0; i < aiPoints.length; i++) {
+                for (let j = i + 1; j < aiPoints.length; j++) {
+                    for (let k = j + 1; k < aiPoints.length; k++) {
+                        for (let l = k + 1; l < aiPoints.length; l++) {
+                            const corners = [aiPoints[i], aiPoints[j], aiPoints[k], aiPoints[l]];
+                            if (isSquare(corners)) {
+                                const cornerIndices = corners.map(p => p.y * GRID_COLS + p.x).sort((a,b) => a-b);
+                                const id = cornerIndices.join('-');
+                                if (!claimedSquares.some(sq => sq.id === id)) {
+                                     return { id, corners: cornerIndices };
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+
+        function placeRandomComputerMark() {
+            let availableCells = [];
+            for (let i = 0; i < boardState.length; i++) {
+                if (boardState[i] === 0) availableCells.push(i);
+            }
+            if (availableCells.length === 0) return;
+            const moveIndex = availableCells[Math.floor(Math.random() * availableCells.length)];
+            placeMark(moveIndex);
+        }
+
+        /**
+         * UPDATED isSquare function
+         * Checks if 4 points form a square at any orientation.
+         * It calculates the 6 distances between all pairs of points.
+         * A square has 4 equal side lengths (s) and 2 equal diagonal lengths (d).
+         * Also, d^2 must equal 2 * s^2. We use squared distances to avoid sqrt.
+         */
+        function isSquare(points) {
+            if (points.length !== 4) return false;
+
+            const distSq = (p1, p2) => Math.round(((p1.x - p2.x)**2 + (p1.y - p2.y)**2) * 100) / 100;
+
+            const distances = [
+                distSq(points[0], points[1]),
+                distSq(points[0], points[2]),
+                distSq(points[0], points[3]),
+                distSq(points[1], points[2]),
+                distSq(points[1], points[3]),
+                distSq(points[2], points[3])
+            ].sort((a, b) => a - b);
+            
+            // Check for non-zero side, 4 equal sides, 2 equal diagonals, and Pythagorean theorem for diagonals
+            const hasPositiveSide = distances[0] > 0;
+            const hasFourEqualSides = distances[0] === distances[1] && distances[1] === distances[2] && distances[2] === distances[3];
+            const hasTwoEqualDiagonals = distances[4] === distances[5];
+            const isDiagonalCorrect = Math.abs(distances[4] - 2 * distances[0]) < 0.01;
+
+            return hasPositiveSide && hasFourEqualSides && hasTwoEqualDiagonals && isDiagonalCorrect;
+        }
+
+
+        function drawDot(index, player) {
+            const dot = board.querySelector(`[data-index='${index}'] .dot`)
+            dot.classList.add(`player${player}-outline`, 'placed');
+        }
+        
+        function clearSelectionHighlights() {
+             board.querySelectorAll('.selected-for-claim').forEach(d => d.classList.remove('selected-for-claim'));
+        }
+
+        function endGame() {
+            if(gameOver) return;
+            gameOver = true;
+            if(soundsReady) winSound.triggerAttackRelease(['C4', 'E4', 'G4', 'C5'], '0.5s');
+            let message = '';
+            if (scores[1] > scores[2]) {
+                message = '🏆 Blue Wins! 🏆';
+            } else if (scores[2] > scores[1]) {
+                message = `🏆 ${(gameMode === 'cpu' ? 'Computer' : 'Red')} Wins! 🏆`;
+            } else {
+                message = "It's a Draw! 🤝";
+            }
+            
+            modalTitle.textContent = 'Game Over!';
+            modalMessage.innerHTML = message;
+            modal.classList.remove('hidden');
+        }
+
+        // --- Rules Slideshow Logic ---
+        function setupSlides() {
+            const slideData = [
+                {
+                    title: "The Basics",
+                    text: "Two players, 🔵 Blue and 🔴 Red, take turns placing dots on the grid.",
+                },
+                {
+                    title: "What's a Valid Square?",
+                    text: "You can form a square with any four of your dots, no matter if it's aligned to the grid, diagonal, or tilted.",
+                },
+                {
+                    title: "Claim & Bonus",
+                    text: "Claiming a square fills in its corner dots and immediately grants you one bonus move!",
+                },
+                {
+                    title: "Final Round",
+                    text: "When the board is full, each player gets one last chance to claim a square. The player with the most filled dots wins! 🏆",
+                }
+            ];
+
+            slidesContainer.innerHTML = '';
+            slideData.forEach((data, index) => {
+                const slide = document.createElement('div');
+                slide.className = 'slide h-full flex-col md:flex-row items-center justify-center gap-8 p-4';
+                slide.innerHTML = `
+                    <div class="md:w-1/2 text-center">
+                        <h2 class="text-3xl font-black mb-4">${data.title}</h2>
+                        <p class="text-lg">${data.text}</p>
+                    </div>
+                    <div class="md:w-1/2 flex justify-center items-center">
+                        <div id="demo-board-${index + 1}" class="grid grid-cols-5 bg-[#f7b731] rounded-lg shadow-inner w-64 h-64 relative"></div>
+                    </div>
+                `;
+                slidesContainer.appendChild(slide);
+            });
+            slides = document.querySelectorAll('#rules-modal .slide');
+        }
+
+        let demoInterval;
+        function runDemoAnimation(slideIndex) {
+            clearInterval(demoInterval);
+            const demoBoard = document.getElementById(`demo-board-${slideIndex + 1}`);
+            if (!demoBoard) return;
+
+            const createDemoGrid = (boardEl) => {
+                boardEl.innerHTML = '';
+                for (let i = 0; i < 25; i++) {
+                    const cell = document.createElement('div'); cell.className = 'cell';
+                    const dotContainer = document.createElement('div'); dotContainer.className = 'dot-container';
+                    const dot = document.createElement('div'); dot.className = 'dot';
+                    dotContainer.appendChild(dot); cell.appendChild(dotContainer);
+                    boardEl.appendChild(cell);
+                }
+            };
+            
+            const placeDemoDot = (boardEl, index, player, delay) => {
+                setTimeout(() => {
+                    const dot = boardEl.children[index]?.querySelector('.dot');
+                    if(dot) dot.classList.add(`player${player}-outline`, 'placed');
+                }, delay);
+            };
+
+            const fillDemoDot = (boardEl, index, player, delay) => {
+                 setTimeout(() => {
+                    const dot = boardEl.children[index]?.querySelector('.dot');
+                    if(dot) {
+                        dot.classList.remove(`player${player}-outline`);
+                        dot.classList.add(`player${player}-filled`);
+                    }
+                }, delay);
+            };
+
+            const animations = [
+                () => { // Slide 1
+                    const sequence = () => {
+                        createDemoGrid(demoBoard);
+                        placeDemoDot(demoBoard, 6, 1, 500);
+                        placeDemoDot(demoBoard, 18, 2, 1500);
+                        placeDemoDot(demoBoard, 12, 1, 2500);
+                    };
+                    sequence();
+                    demoInterval = setInterval(sequence, 4000);
+                },
+                () => { // Slide 2 - UPDATED with Tilted Square
+                    const sequence = () => {
+                       createDemoGrid(demoBoard);
+                       // Axis-aligned square
+                       [6,8,16,18].forEach((idx, i) => placeDemoDot(demoBoard, idx, 1, 500 + i * 200));
+                       setTimeout(() => drawClaimLines([6,8,16,18], demoBoard), 1500);
+                       
+                       setTimeout(() => {
+                           createDemoGrid(demoBoard);
+                           // 45-degree square
+                           [7, 11, 13, 17].forEach((idx, i) => placeDemoDot(demoBoard, idx, 2, 500 + i * 200));
+                           setTimeout(() => drawClaimLines([7, 11, 13, 17], demoBoard), 1500);
+                       }, 3000);
+
+                       setTimeout(() => {
+                            createDemoGrid(demoBoard);
+                            // Valid Tilted Square
+                            const tiltedSquare = [1, 8, 17, 10]; // p(1,0), p(3,1), p(2,3), p(0,2)
+                            tiltedSquare.forEach((idx, i) => placeDemoDot(demoBoard, idx, 1, 500 + i*200));
+                            setTimeout(() => drawClaimLines(tiltedSquare, demoBoard), 1500);
                        }, 6000);
                     };
                     sequence();
