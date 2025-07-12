@@ -124,33 +124,18 @@
             display: flex;
         }
 
-        /* Decorative Borders */
-        .decorative-border-left {
-            position: fixed;
-            left: 1rem;
-            top: 10rem;
-            bottom: 4rem;
-            width: 1.5rem;
-            background-image: url("data:image/svg+xml,%3Csvg width='24' height='96' viewBox='0 0 24 96' xmlns='http://www.w3.org/2000/svg'%3E%3Crect x='8' y='0' width='8' height='8' fill='%23f1c40f'/%3E%3Crect x='8' y='8' width='8' height='8' fill='%23f1c40f'/%3E%3Cg transform='translate(12 28)'%3E%3Cpath d='M0 -8 L8 0 L0 8 L-8 0 Z' fill='%23f9e79f'/%3E%3C/g%3E%3Cg transform='translate(12 44)'%3E%3Cpath d='M0 -12 L12 0 L0 12 L-12 0 Z' fill='%23f39c12'/%3E%3C/g%3E%3Crect x='8' y='64' width='8' height='8' fill='%23f1c40f'/%3E%3Crect x='8' y='72' width='8' height='8' fill='%23f1c40f'/%3E%3Cg transform='translate(12 92)'%3E%3Cpath d='M0 -8 L8 0 L0 8 L-8 0 Z' fill='%23f9e79f'/%3E%3C/g%3E%3C/svg%3E");
-            background-repeat: repeat-y;
-            background-size: 1.5rem 6rem;
+        #two-player-btn{
+            background-color: #0A93D1;
         }
-        .decorative-border-bottom {
-            position: fixed;
-            bottom: 1rem;
-            left: 4rem;
-            right: 1rem;
-            height: 1.5rem;
-            background-image: url("data:image/svg+xml,%3Csvg width='96' height='24' viewBox='0 0 96 24' xmlns='http://www.w3.org/2000/svg'%3E%3Crect x='0' y='8' width='8' height='8' fill='%23e74c3c'/%3E%3Crect x='8' y='8' width='8' height='8' fill='%23e74c3c'/%3E%3Cg transform='translate(28 12)'%3E%3Cpath d='M0 -8 L8 0 L0 8 L-8 0 Z' fill='%23f1948a'/%3E%3C/g%3E%3Cg transform='translate(44 12)'%3E%3Cpath d='M0 -12 L12 0 L0 12 L-12 0 Z' fill='%23c0392b'/%3E%3C/g%3E%3Crect x='64' y='8' width='8' height='8' fill='%23e74c3c'/%3E%3Crect x='72' y='8' width='8' height='8' fill='%23e74c3c'/%3E%3Cg transform='translate(92 12)'%3E%3Cpath d='M0 -8 L8 0 L0 8 L-8 0 Z' fill='%23f1948a'/%3E%3C/g%3E%3C/svg%3E");
-            background-repeat: repeat-x;
-            background-size: 6rem 1.5rem;
+
+        #vs-computer-btn{
+            background-color: #D10A0A;
         }
-        
+
     </style>
 </head>
 <body>
-    <div class="decorative-border-left hidden lg:block"></div>
-    <div class="decorative-border-bottom hidden sm:block"></div>
+    <button id="mute-btn" class="fixed top-4 right-4 text-3xl z-50 p-2 rounded-full bg-white bg-opacity-30 hover:bg-opacity-75 transition-all duration-200 action-btn">🔊</button>
 
     <main class="w-full min-h-screen flex items-center justify-center p-4">
         <div id="start-screen" class="w-full max-w-md text-center">
@@ -172,8 +157,8 @@
             </div>
 
             <div class="space-y-4 mt-8 max-w-sm mx-auto">
-                <button id="two-player-btn" class="action-btn start-button-blue w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg text-lg transition transform hover:scale-105">2 Player Mode</button>
-                <button id="vs-computer-btn" class="action-btn start-button-red w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg text-lg transition transform hover:scale-105">VS Computer</button>
+                <button id="two-player-btn" class="action-btn start-button w-full text-white font-bold py-3 px-6 rounded-lg text-lg transition transform hover:scale-105">2 Player Mode</button>
+                <button id="vs-computer-btn" class="action-btn start-button w-full text-white font-bold py-3 px-6 rounded-lg text-lg transition transform hover:scale-105">VS Computer</button>
                 <button id="rules-btn" class="action-btn w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-6 rounded-lg text-lg transition transform hover:scale-105 mt-2">🤔 How to Play</button>
             </div>
         </div>
@@ -224,13 +209,11 @@
         </div>
     </div>
     
-    <!-- Rules Modal -->
     <div id="rules-modal" class="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center hidden z-50 p-4">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col p-6 relative">
             <button id="close-rules-btn" class="absolute top-4 right-4 text-3xl font-bold text-gray-500 hover:text-black">&times;</button>
             <div id="slides-container" class="flex-grow overflow-hidden relative">
-                <!-- Slides will be dynamically inserted here -->
-            </div>
+                </div>
             <div class="flex justify-between items-center mt-4">
                 <button id="prev-slide-btn" class="action-btn bg-gray-300 hover:bg-gray-400 font-bold py-2 px-4 rounded-lg">⬅️ Previous</button>
                 <div id="slide-dots" class="flex gap-2"></div>
@@ -272,6 +255,7 @@
         const nextSlideBtn = document.getElementById('next-slide-btn');
         const slidesContainer = document.getElementById('slides-container');
         const slideDotsContainer = document.getElementById('slide-dots');
+        const muteBtn = document.getElementById('mute-btn');
 
         // --- Game State ---
         let GRID_ROWS = 8;
@@ -287,6 +271,7 @@
         let moveHistory = [];
         let currentSlide = 0;
         let slides = [];
+        let isMuted = false;
 
         // --- Sound Effects ---
         let soundsReady = false;
@@ -413,8 +398,19 @@
             if (!soundsReady) {
                 await Tone.start();
                 soundsReady = true;
+                // Ensure mute state is applied after Tone starts
+                Tone.Master.mute = isMuted;
             }
         }, { once: true });
+        
+        function toggleMute() {
+            isMuted = !isMuted;
+            muteBtn.textContent = isMuted ? '🔇' : '🔊';
+            if (soundsReady) {
+                Tone.Master.mute = isMuted;
+            }
+        }
+        muteBtn.addEventListener('click', toggleMute);
 
         gridRowsSelector.addEventListener('click', (e) => {
             if (e.target.classList.contains('grid-size-btn')) {
