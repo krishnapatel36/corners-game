@@ -178,11 +178,11 @@
                     <h1 class="text-4xl font-black mb-4 text-center tracking-wider">CORNERS</h1>
                     <div class="flex justify-around items-center mb-4 text-center">
                         <div>
-                            <span class="text-5xl">🔵</span>
+                            <span class="text-4xl">🔵</span>
                             <p id="score1" class="text-4xl font-bold">0</p>
                         </div>
                         <div>
-                            <span id="player2-emoji" class="text-5xl">🔴</span>
+                            <span id="player2-emoji" class="text-4xl">🔴</span>
                             <p id="score2" class="text-4xl font-bold">0</p>
                         </div>
                     </div>
@@ -450,7 +450,7 @@
         function startGame(mode) {
             gameMode = mode;
             player2Emoji.innerHTML = (mode === 'cpu') 
-                ? `<img src="robinder.png" alt="Robot" style="margin-top:-5px; width: 64px; height: 50px; display: inline-block;" />`
+                ? `<img src="robinder.png" alt="Robot" style="margin-top:-5px; width: 55px; height: 55px; display: inline-block;" />`
                 : `🔴`;
             startScreen.classList.add('hidden');
             gameContainer.classList.remove('hidden');
@@ -494,7 +494,7 @@
                 passBtn.classList.remove('hidden');
             } else { // PLACE_MARK
                 claimBtn.classList.remove('hidden');
-                infoMessage.textContent = 'Place a new mark or claim a square.';
+                infoMessage.textContent = 'claim a square or place a new mark.';
                 if (moveHistory.length > 0 && (gameMode === '2p' || (gameMode === 'cpu' && currentPlayer === 1))) {
                     undoBtn.classList.remove('hidden');
                 }
