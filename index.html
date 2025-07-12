@@ -48,10 +48,10 @@
              transform: scale(1);
         }
 
-        .dot.player1-outline { border: 5px solid #3b82f6; }
+        .dot.player1-outline { border: 5px solid #0A93D1; }
         .dot.player2-outline { border: 5px solid #ef4444; }
 
-        .dot.player1-filled { background-color: #3b82f6; border: none; }
+        .dot.player1-filled { background-color: #0A93D1; border: none; }
         .dot.player2-filled { background-color: #ef4444; border: none; }
 
         .dot.selected-for-claim {
@@ -129,7 +129,11 @@
         }
 
         #vs-computer-btn{
-            background-color: #D10A0A;
+            background-color: #F4A52D;
+        }
+
+        #claim-btn{
+            background-color: #8BC75B;
         }
 
     </style>
@@ -189,7 +193,7 @@
                         <p id="info-message"></p>
                     </div>
                      <div id="action-buttons" class="space-y-3">
-                        <button id="claim-btn" class="action-btn w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-5 rounded-lg transition transform hover:scale-105 hidden">✅ Claim Square</button>
+                        <button id="claim-btn" class="action-btn w-full text-white font-bold py-3 px-5 rounded-lg transition transform hover:scale-105 hidden">✅ Claim Square</button>
                         <button id="pass-btn" class="action-btn w-full bg-yellow-500 hover:bg-yellow-600 text-black font-bold py-3 px-5 rounded-lg transition transform hover:scale-105 hidden">⏩ Pass Turn</button>
                         <button id="cancel-claim-btn" class="action-btn w-full bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-5 rounded-lg transition transform hover:scale-105 hidden">❌ Cancel Claim</button>
                         <button id="undo-btn" class="action-btn w-full bg-gray-400 hover:bg-gray-500 text-white font-bold py-3 px-5 rounded-lg transition transform hover:scale-105 hidden">↩️ Undo Move</button>
@@ -466,8 +470,11 @@
 
             const playerName = currentPlayer === 1 ? 'Blue' : 'Red';
             currentPlayerEl.textContent = playerName;
-            turnIndicator.classList.toggle('bg-blue-600', currentPlayer === 1);
-            turnIndicator.classList.toggle('bg-red-600', currentPlayer === 2);
+            if (currentPlayer === 1) {
+                turnIndicator.style.backgroundColor = '#0A93D1';  // replace with your actual color
+            } else if (currentPlayer === 2) {
+                turnIndicator.style.backgroundColor = '#F05656';  // replace with your actual color
+            }
             turnIndicator.classList.add('text-white');
 
             claimBtn.classList.add('hidden');
